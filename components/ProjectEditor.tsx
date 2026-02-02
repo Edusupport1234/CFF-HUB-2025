@@ -18,7 +18,6 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
   const [title, setTitle] = useState(project.title);
   const [thumbnail, setThumbnail] = useState(project.thumbnail);
   const [trackId, setTrackId] = useState(project.trackId);
-  const [device, setDevice] = useState<'desktop' | 'mobile'>('desktop');
   const [showThemeMenu, setShowThemeMenu] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeUpload, setActiveUpload] = useState<{ sId: string, bId: string, type: BlockType } | null>(null);
@@ -188,7 +187,7 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Header - Improved contrast */}
+        {/* Header - Simplified, removed device toggles */}
         <header className="h-20 bg-white border-b-2 border-slate-300 px-10 flex items-center justify-between z-30">
           <div className="flex items-center gap-6">
             <button onClick={onBack} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all text-slate-900 border border-slate-300">{ICONS.Back}</button>
@@ -206,19 +205,15 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
             </div>
           </div>
           <div className="flex items-center gap-6">
-            <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
-              <button onClick={() => setDevice('desktop')} className={`p-2.5 rounded-xl transition-all ${device === 'desktop' ? 'bg-white text-slate-950 shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>{ICONS.Desktop}</button>
-              <button onClick={() => setDevice('mobile')} className={`p-2.5 rounded-xl transition-all ${device === 'mobile' ? 'bg-white text-slate-950 shadow-md' : 'text-slate-500 hover:text-slate-900'}`}>{ICONS.Mobile}</button>
-            </div>
             <button onClick={handleSave} className="bg-purple-700 text-white px-10 py-3.5 rounded-full text-xs font-black uppercase tracking-widest hover:bg-slate-950 transition-all shadow-2xl">
               Publish Tutorial
             </button>
           </div>
         </header>
 
-        {/* Stage - Faded fix */}
+        {/* Stage - Simplified to single layout */}
         <main className="flex-1 overflow-y-auto p-12 editor-canvas no-scrollbar">
-          <div className={`mx-auto transition-all duration-700 ease-in-out ${device === 'mobile' ? 'max-w-[440px] ring-[20px] ring-slate-950 rounded-[5rem] bg-white shadow-2xl overflow-hidden' : 'max-w-6xl'}`}>
+          <div className="mx-auto max-w-6xl">
             <div className="min-h-[90vh] bg-white rounded-[4rem] shadow-2xl border-2 border-slate-300 overflow-hidden relative" ref={containerRef}>
               
               {sections.length === 0 && (
@@ -236,7 +231,7 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
                   onDragOver={e => e.preventDefault()}
                   onDrop={() => handleBlockDrop(section.id, section.blocks.length)}
                 >
-                  {/* Grid Snap Overlay - Subtler but clear */}
+                  {/* Grid Snap Overlay */}
                   {(resizing || draggingBlock) && (
                     <div className="absolute inset-0 z-0 pointer-events-none px-12 md:px-20 grid grid-cols-12 gap-10 opacity-5">
                       {Array.from({ length: 12 }).map((_, i) => (
@@ -245,7 +240,7 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
                     </div>
                   )}
 
-                  {/* High Visibility Section Controls */}
+                  {/* Section Controls */}
                   <div className="absolute left-6 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 flex flex-col gap-3 z-30 transition-all duration-300 translate-x-[-10px] group-hover:translate-x-0">
                     <button onClick={() => setShowThemeMenu(showThemeMenu === section.id ? null : section.id)} className="p-4 bg-slate-950 text-white rounded-[2rem] shadow-2xl hover:bg-purple-700 transition-all border border-slate-800">
                       {ICONS.Theme}
@@ -263,7 +258,7 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
                     </button>
                   </div>
 
-                  {/* Theme Overlay - High Contrast */}
+                  {/* Theme Overlay */}
                   {showThemeMenu === section.id && (
                     <div className="absolute left-28 top-1/2 -translate-y-1/2 w-64 bg-slate-950 rounded-[3rem] shadow-2xl border border-slate-800 p-8 z-50 animate-slide-up">
                       <p className="text-[12px] font-black text-white uppercase tracking-widest mb-6 border-b border-slate-800 pb-2">Appearance</p>
@@ -318,7 +313,7 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
                             </button>
                           </div>
 
-                          {/* Stronger Resize Handle */}
+                          {/* Resize Handle */}
                           <div 
                             onMouseDown={(e) => setResizing({ sId: section.id, bId: block.id, startX: e.clientX, startSpan: block.gridSpan || 12 })}
                             className="absolute right-0 top-1/2 -translate-y-1/2 w-8 h-16 cursor-ew-resize opacity-0 group-hover/block:opacity-100 transition-opacity z-20 flex items-center justify-center"
@@ -384,7 +379,7 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
                       );
                     })}
                     
-                    {/* High Visibility Add Placeholder */}
+                    {/* Add Placeholder */}
                     <button 
                       onClick={() => addBlockToSection(section.id, 'text')}
                       className="col-span-12 md:col-span-1 border-4 border-dashed border-slate-300 rounded-[3.5rem] flex items-center justify-center text-slate-400 hover:border-slate-950 hover:text-slate-950 hover:bg-slate-100 transition-all opacity-0 group-hover:opacity-100 min-h-[160px] group/add shadow-inner"

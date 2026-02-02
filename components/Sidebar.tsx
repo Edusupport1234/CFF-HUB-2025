@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { ICONS } from '../constants';
 import { LearningTrack } from '../types';
 
@@ -11,30 +11,7 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, tracks, onTracksReorder }) => {
-  const [sidebarWidth, setSidebarWidth] = useState(256); // Default 64rem = 256px
-  const isResizing = useRef(false);
   const [draggedItemIndex, setDraggedItemIndex] = useState<number | null>(null);
-
-  // Handle Sidebar Resizing
-  const startResizing = (e: React.MouseEvent) => {
-    isResizing.current = true;
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', stopResizing);
-    document.body.style.cursor = 'col-resize';
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (!isResizing.current) return;
-    const newWidth = Math.min(Math.max(220, e.clientX), 450);
-    setSidebarWidth(newWidth);
-  };
-
-  const stopResizing = () => {
-    isResizing.current = false;
-    document.removeEventListener('mousemove', handleMouseMove);
-    document.removeEventListener('mouseup', stopResizing);
-    document.body.style.cursor = 'default';
-  };
 
   // Handle Track Drag & Drop
   const onDragStart = (index: number) => {
@@ -60,17 +37,8 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onViewChange, tracks, on
 
   return (
     <div 
-      style={{ width: `${sidebarWidth}px` }} 
-      className="h-screen bg-white border-r border-slate-200 flex flex-col py-8 px-4 relative transition-[width] duration-75 shadow-sm"
+      className="w-80 h-screen bg-white border-r border-slate-200 flex flex-col py-8 px-4 relative shadow-sm shrink-0"
     >
-      {/* Resize Handle */}
-      <div 
-        onMouseDown={startResizing}
-        className="absolute top-0 right-0 w-1.5 h-full cursor-col-resize hover:bg-purple-500/20 active:bg-purple-600/40 transition-colors z-50 group"
-      >
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-0.5 h-12 bg-slate-300 group-hover:bg-purple-500 rounded-full" />
-      </div>
-
       {/* Logo */}
       <div className="flex items-center gap-3 px-2 mb-10 overflow-hidden whitespace-nowrap">
         <div className="w-10 h-10 shrink-0 bg-purple-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-200">
