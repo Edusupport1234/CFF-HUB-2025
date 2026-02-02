@@ -1,0 +1,8 @@
+{
+  "name": "EP EDUCATION CFF HUB",
+  "description": "A tutorial management system for educational tracks.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
