@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import ProjectEditor from './components/ProjectEditor';
 import ProjectViewer from './components/ProjectViewer';
@@ -124,11 +124,6 @@ const App: React.FC = () => {
   const handleProjectClick = (p: Project) => {
     setSelectedProject(p);
     setCurrentView('viewer');
-  };
-
-  const handlePlayVideo = (p: Project, e: React.MouseEvent) => {
-    e.stopPropagation();
-    handleProjectClick(p);
   };
 
   const onProjectDragStart = (e: React.DragEvent, id: string) => {

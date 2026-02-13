@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { ICONS } from '../constants';
-import { LearningTrack, Subcategory } from '../types';
+import { LearningTrack } from '../types';
 
 interface SidebarProps {
   currentView: string;
@@ -132,7 +132,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   // Drag & Drop logic
-  const onTrackDragStart = (e: React.DragEvent, index: number) => {
+  const onTrackDragStart = (_e: React.DragEvent, index: number) => {
     setDraggedTrackIndex(index);
     setDraggedSubIndex(null);
   };

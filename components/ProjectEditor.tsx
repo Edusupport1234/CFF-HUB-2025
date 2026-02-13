@@ -1,5 +1,5 @@
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Project, LearningTrack, ProjectStatus, Section, ContentBlock } from '../types';
 import { ICONS } from '../constants';
 import VideoPlayer from './VideoPlayer';
