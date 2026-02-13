@@ -9,9 +9,10 @@ interface ProjectViewerProps {
   track?: LearningTrack;
   onBack: () => void;
   onEdit: () => void;
+  isAdmin: boolean;
 }
 
-const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, onEdit }) => {
+const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, onEdit, isAdmin }) => {
   const [showHeroVideo, setShowHeroVideo] = useState(false);
 
   const getYoutubeUrl = (videoUrl: string) => {
@@ -82,12 +83,14 @@ const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, o
                {ICONS.External} SOURCE
              </button>
           )}
-          <button 
-            onClick={onEdit}
-            className="flex items-center gap-3 bg-slate-950 text-white px-8 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-purple-800 transition-all shadow-xl"
-          >
-            {ICONS.Settings} CONFIGURE
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={onEdit}
+              className="flex items-center gap-3 bg-slate-950 text-white px-8 py-3.5 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-purple-800 transition-all shadow-xl"
+            >
+              {ICONS.Settings} CONFIGURE
+            </button>
+          )}
         </div>
       </nav>
 

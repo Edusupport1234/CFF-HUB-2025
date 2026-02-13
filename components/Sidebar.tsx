@@ -12,6 +12,9 @@ interface SidebarProps {
   onTrackSelect: (id: string | null) => void;
   selectedSubcategoryId: string | null;
   onSubcategorySelect: (id: string | null) => void;
+  isAdmin: boolean;
+  onAdminLogin: () => void;
+  onAdminLogout: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -22,7 +25,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   selectedTrackId, 
   onTrackSelect,
   selectedSubcategoryId,
-  onSubcategorySelect
+  onSubcategorySelect,
+  isAdmin,
+  onAdminLogin,
+  onAdminLogout
 }) => {
   const [draggedTrackIndex, setDraggedTrackIndex] = useState<number | null>(null);
   const [draggedSubIndex, setDraggedSubIndex] = useState<{ trackIdx: number, subIdx: number } | null>(null);
@@ -110,6 +116,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const handleDeleteTrack = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    if (!isAdmin) return;
     if (confirm("Delete this track and all its contents?")) {
       onTracksReorder(tracks.filter(t => t.id !== id));
       if (selectedTrackId === id) {
@@ -121,6 +128,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const handleDeleteSub = (e: React.MouseEvent, trackId: string, subId: string) => {
     e.stopPropagation();
+    if (!isAdmin) return;
     const newTracks = tracks.map(t => {
       if (t.id === trackId) {
         return { ...t, subcategories: t.subcategories?.filter(s => s.id !== subId) };
@@ -133,13 +141,14 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   // Drag & Drop logic
   const onTrackDragStart = (_e: React.DragEvent, index: number) => {
+    if (!isAdmin) return;
     setDraggedTrackIndex(index);
     setDraggedSubIndex(null);
   };
 
   const onTrackDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    if (draggedTrackIndex === null || draggedTrackIndex === index) return;
+    if (!isAdmin || draggedTrackIndex === null || draggedTrackIndex === index) return;
     const newTracks = [...tracks];
     const [item] = newTracks.splice(draggedTrackIndex, 1);
     newTracks.splice(index, 0, item);
@@ -148,6 +157,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   const onSubDragStart = (e: React.DragEvent, trackIdx: number, subIdx: number) => {
+    if (!isAdmin) return;
     e.stopPropagation();
     setDraggedSubIndex({ trackIdx, subIdx });
     setDraggedTrackIndex(null);
@@ -156,7 +166,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const onSubDragOver = (e: React.DragEvent, trackIdx: number, subIdx: number) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!draggedSubIndex || draggedSubIndex.trackIdx !== trackIdx || draggedSubIndex.subIdx === subIdx) return;
+    if (!isAdmin || !draggedSubIndex || draggedSubIndex.trackIdx !== trackIdx || draggedSubIndex.subIdx === subIdx) return;
 
     const newTracks = JSON.parse(JSON.stringify(tracks)) as LearningTrack[];
     const track = newTracks[trackIdx];
@@ -204,12 +214,14 @@ const Sidebar: React.FC<SidebarProps> = ({
       <div className="mt-10 flex-1 overflow-y-auto no-scrollbar">
         <div className="px-4 flex items-center justify-between mb-6">
           <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">LEARNING TRACKS</h3>
-          <button 
-            onClick={() => setAddingTrack(true)}
-            className="p-1.5 hover:bg-slate-100 rounded-lg text-purple-700 transition-colors"
-          >
-            {ICONS.Plus}
-          </button>
+          {isAdmin && (
+            <button 
+              onClick={() => setAddingTrack(true)}
+              className="p-1.5 hover:bg-slate-100 rounded-lg text-purple-700 transition-colors"
+            >
+              {ICONS.Plus}
+            </button>
+          )}
         </div>
 
         {addingTrack && (
@@ -230,12 +242,14 @@ const Sidebar: React.FC<SidebarProps> = ({
           {tracks.map((track, tIdx) => (
             <div key={track.id} className="space-y-1">
               <div
-                draggable
+                draggable={isAdmin}
                 onDragStart={(e) => onTrackDragStart(e, tIdx)}
                 onDragOver={(e) => onTrackDragOver(e, tIdx)}
                 onDragEnd={() => setDraggedTrackIndex(null)}
                 onClick={() => handleTrackClick(track.id)}
-                className={`group flex items-center gap-3 px-4 py-3.5 rounded-xl cursor-grab active:cursor-grabbing transition-all border border-transparent ${
+                className={`group flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all border border-transparent ${
+                  isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+                } ${
                   selectedTrackId === track.id && selectedSubcategoryId === null
                     ? 'bg-purple-100 border-purple-200 text-purple-900 shadow-sm' 
                     : 'hover:bg-slate-50 hover:border-slate-200 text-slate-900'
@@ -245,12 +259,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                 <span className="flex-1 text-[12px] font-bold tracking-wide uppercase truncate">
                   {track.title}
                 </span>
-                <button 
-                  onClick={(e) => handleDeleteTrack(e, track.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-all"
-                >
-                  {ICONS.Delete}
-                </button>
+                {isAdmin && (
+                  <button 
+                    onClick={(e) => handleDeleteTrack(e, track.id)}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-all"
+                  >
+                    {ICONS.Delete}
+                  </button>
+                )}
                 <div 
                   onClick={(e) => toggleTrackExpansion(e, track.id)}
                   className={`p-1 text-slate-400 hover:text-purple-600 transition-transform duration-300 ${expandedTrackIds.has(track.id) ? 'rotate-180' : ''}`}
@@ -264,12 +280,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                   {track.subcategories?.map((sub, sIdx) => (
                     <div
                       key={sub.id}
-                      draggable
+                      draggable={isAdmin}
                       onDragStart={(e) => onSubDragStart(e, tIdx, sIdx)}
                       onDragOver={(e) => onSubDragOver(e, tIdx, sIdx)}
                       onDragEnd={() => setDraggedSubIndex(null)}
                       onClick={(e) => handleSubcategoryClick(e, track.id, sub.id)}
-                      className={`group flex items-center gap-3 px-4 py-2.5 rounded-lg cursor-grab active:cursor-grabbing transition-all border border-transparent ${
+                      className={`group flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all border border-transparent ${
+                        isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+                      } ${
                         selectedSubcategoryId === sub.id 
                           ? 'bg-purple-50 border-purple-100 text-purple-700' 
                           : 'hover:bg-slate-50 hover:border-slate-200 text-slate-600'
@@ -279,16 +297,18 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <span className={`flex-1 text-[11px] font-bold tracking-wide uppercase truncate ${selectedSubcategoryId === sub.id ? 'text-purple-900' : 'group-hover:text-slate-900'}`}>
                         {sub.title}
                       </span>
-                      <button 
-                        onClick={(e) => handleDeleteSub(e, track.id, sub.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-all scale-75"
-                      >
-                        {ICONS.Delete}
-                      </button>
+                      {isAdmin && (
+                        <button 
+                          onClick={(e) => handleDeleteSub(e, track.id, sub.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-all scale-75"
+                        >
+                          {ICONS.Delete}
+                        </button>
+                      )}
                     </div>
                   ))}
                   
-                  {addingSubToTrackId === track.id ? (
+                  {isAdmin && (addingSubToTrackId === track.id ? (
                     <div className="px-4 py-2">
                       <input
                         ref={inputRef}
@@ -308,7 +328,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       <span className="scale-75">{ICONS.Plus}</span>
                       ADD SUBCATEGORY
                     </button>
-                  )}
+                  ))}
                 </div>
               )}
             </div>
@@ -316,9 +336,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      <button className="mt-auto mx-2 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-slate-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-purple-800 transition-all shadow-md">
-        {ICONS.Admin}
-        ADMIN LOGIN
+      <button 
+        onClick={isAdmin ? onAdminLogout : onAdminLogin}
+        className="mt-auto mx-2 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-slate-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-purple-800 transition-all shadow-md"
+      >
+        {isAdmin ? <>{ICONS.Back} LOGOUT</> : <>{ICONS.Admin} ADMIN LOGIN</>}
       </button>
     </div>
   );

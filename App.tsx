@@ -47,6 +47,7 @@ const DEMO_PROJECTS: Project[] = [
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -65,9 +66,17 @@ const App: React.FC = () => {
     if (loginUsername === 'EPEDUSUPPORT' && loginPassword === '12345678') {
       setIsAuthenticated(true);
       setLoginError('');
+      setShowLoginModal(false);
+      setLoginUsername('');
+      setLoginPassword('');
     } else {
       setLoginError('Invalid credentials. Please try again.');
     }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setCurrentView('home');
   };
 
   const getYoutubeThumbnail = (videoUrl: string) => {
@@ -97,6 +106,7 @@ const App: React.FC = () => {
   };
 
   const handleCreateProject = (trackId?: string, subcategoryId?: string) => {
+    if (!isAuthenticated) return;
     const newProject: Project = {
       id: Math.random().toString(36).substr(2, 9),
       title: 'New Tutorial Title',
@@ -127,13 +137,14 @@ const App: React.FC = () => {
   };
 
   const onProjectDragStart = (e: React.DragEvent, id: string) => {
+    if (!isAuthenticated) return;
     setDraggedProjectId(id);
     e.dataTransfer.setData('projectId', id);
   };
 
   const onProjectDragOver = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
-    if (!draggedProjectId || draggedProjectId === targetId) return;
+    if (!isAuthenticated || !draggedProjectId || draggedProjectId === targetId) return;
     const draggedIdx = projects.findIndex(p => p.id === draggedProjectId);
     const targetIdx = projects.findIndex(p => p.id === targetId);
     const draggedProj = projects[draggedIdx];
@@ -149,62 +160,6 @@ const App: React.FC = () => {
     setDraggedProjectId(null);
   };
 
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="w-full max-w-md bg-white rounded-[3rem] p-12 shadow-2xl animate-slide-up">
-          <div className="flex flex-col items-center mb-10">
-            <div className="w-16 h-16 bg-purple-700 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-purple-900/20 mb-6">
-              <div className="w-8 h-8 border-4 border-white rounded-xl flex items-center justify-center">
-                <div className="w-2 h-2 bg-white rounded-full"></div>
-              </div>
-            </div>
-            <h1 className="text-3xl font-black text-slate-950 uppercase tracking-tighter text-center">EP Education</h1>
-            <p className="text-[11px] font-black text-purple-700 uppercase tracking-[0.3em] mt-2">Tutorial Management Hub</p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-6">
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Username</label>
-              <input 
-                type="text" 
-                value={loginUsername}
-                onChange={(e) => setLoginUsername(e.target.value)}
-                className="w-full px-8 py-4 bg-slate-100 border-2 border-transparent focus:border-purple-600 focus:bg-white rounded-2xl text-sm font-bold focus:outline-none transition-all"
-                placeholder="EPEDUSUPPORT"
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Password</label>
-              <input 
-                type="password" 
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                className="w-full px-8 py-4 bg-slate-100 border-2 border-transparent focus:border-purple-600 focus:bg-white rounded-2xl text-sm font-bold focus:outline-none transition-all"
-                placeholder="••••••••"
-              />
-            </div>
-
-            {loginError && (
-              <p className="text-[10px] font-bold text-red-500 uppercase text-center">{loginError}</p>
-            )}
-
-            <button 
-              type="submit"
-              className="w-full bg-purple-700 hover:bg-slate-950 text-white py-5 rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl shadow-purple-700/20 transition-all active:scale-95"
-            >
-              Authorize Access
-            </button>
-          </form>
-
-          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center mt-12">
-            © 2026 EP Education • Support Hub
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const filteredProjects = projects.filter(p => 
     p.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -215,11 +170,13 @@ const App: React.FC = () => {
     return (
       <div 
         key={project.id}
-        draggable
+        draggable={isAuthenticated}
         onDragStart={(e) => onProjectDragStart(e, project.id)}
         onDragOver={(e) => onProjectDragOver(e, project.id)}
         onDragEnd={onProjectDragEnd}
-        className={`group bg-white rounded-[2rem] sm:rounded-[3.5rem] border-2 border-slate-200 overflow-hidden hover:shadow-2xl hover:shadow-purple-700/20 transition-all duration-500 cursor-grab active:cursor-grabbing hover:border-purple-400 ${
+        className={`group bg-white rounded-[2rem] sm:rounded-[3.5rem] border-2 border-slate-200 overflow-hidden hover:shadow-2xl hover:shadow-purple-700/20 transition-all duration-500 cursor-pointer ${
+          isAuthenticated ? 'cursor-grab active:cursor-grabbing' : ''
+        } hover:border-purple-400 ${
           isDragging ? 'opacity-20 scale-95 border-purple-500' : 'opacity-100'
         }`}
         onClick={() => handleProjectClick(project)}
@@ -257,20 +214,23 @@ const App: React.FC = () => {
     );
   };
 
-  const renderAddPlaceholder = (trackId: string, subcategoryId?: string) => (
-    <div 
-      key={`add-${trackId}-${subcategoryId || 'main'}`}
-      onClick={() => handleCreateProject(trackId, subcategoryId)}
-      className="group aspect-video xl:aspect-auto xl:h-full min-h-[200px] sm:min-h-[250px] border-4 border-dashed border-slate-200 rounded-[2rem] sm:rounded-[3.5rem] bg-white/50 flex flex-col items-center justify-center gap-4 hover:border-purple-600 hover:bg-purple-50 transition-all cursor-pointer shadow-sm hover:shadow-xl"
-    >
-      <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-inner">
-        <div className="scale-125 sm:scale-150 transition-transform group-hover:rotate-90">{ICONS.Plus}</div>
+  const renderAddPlaceholder = (trackId: string, subcategoryId?: string) => {
+    if (!isAuthenticated) return null;
+    return (
+      <div 
+        key={`add-${trackId}-${subcategoryId || 'main'}`}
+        onClick={() => handleCreateProject(trackId, subcategoryId)}
+        className="group aspect-video xl:aspect-auto xl:h-full min-h-[200px] sm:min-h-[250px] border-4 border-dashed border-slate-200 rounded-[2rem] sm:rounded-[3.5rem] bg-white/50 flex flex-col items-center justify-center gap-4 hover:border-purple-600 hover:bg-purple-50 transition-all cursor-pointer shadow-sm hover:shadow-xl"
+      >
+        <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-inner">
+          <div className="scale-125 sm:scale-150 transition-transform group-hover:rotate-90">{ICONS.Plus}</div>
+        </div>
+        <span className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] group-hover:text-purple-700 transition-colors">
+          ADD TUTORIAL
+        </span>
       </div>
-      <span className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] group-hover:text-purple-700 transition-colors">
-        ADD TUTORIAL
-      </span>
-    </div>
-  );
+    );
+  };
 
   const visibleTracks = selectedTrackId 
     ? tracks.filter(t => t.id === selectedTrackId)
@@ -319,12 +279,70 @@ const App: React.FC = () => {
         track={tracks.find(t => t.id === selectedProject.trackId)}
         onBack={() => { setCurrentView('home'); setSelectedProject(null); }}
         onEdit={() => setCurrentView('editor')}
+        isAdmin={isAuthenticated}
       />
     );
   }
 
   return (
-    <div className="flex h-screen bg-slate-100 overflow-hidden">
+    <div className="flex h-screen bg-slate-100 overflow-hidden relative">
+      {/* Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-white rounded-[3rem] p-12 shadow-2xl animate-slide-up relative">
+            <button 
+              onClick={() => setShowLoginModal(false)}
+              className="absolute top-8 right-8 text-slate-400 hover:text-slate-950 transition-colors"
+            >
+              {ICONS.Back}
+            </button>
+            <div className="flex flex-col items-center mb-10">
+              <div className="w-16 h-16 bg-purple-700 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-purple-900/20 mb-6">
+                <div className="w-8 h-8 border-4 border-white rounded-xl flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                </div>
+              </div>
+              <h1 className="text-3xl font-black text-slate-950 uppercase tracking-tighter text-center">EP Admin</h1>
+              <p className="text-[11px] font-black text-purple-700 uppercase tracking-[0.3em] mt-2">Tutorial Management Hub</p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Username</label>
+                <input 
+                  type="text" 
+                  value={loginUsername}
+                  onChange={(e) => setLoginUsername(e.target.value)}
+                  className="w-full px-8 py-4 bg-slate-100 border-2 border-transparent focus:border-purple-600 focus:bg-white rounded-2xl text-sm font-bold focus:outline-none transition-all"
+                  placeholder="EPEDUSUPPORT"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Password</label>
+                <input 
+                  type="password" 
+                  value={loginPassword}
+                  onChange={(e) => setLoginPassword(e.target.value)}
+                  className="w-full px-8 py-4 bg-slate-100 border-2 border-transparent focus:border-purple-600 focus:bg-white rounded-2xl text-sm font-bold focus:outline-none transition-all"
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {loginError && (
+                <p className="text-[10px] font-bold text-red-500 uppercase text-center">{loginError}</p>
+              )}
+
+              <button 
+                type="submit"
+                className="w-full bg-purple-700 hover:bg-slate-950 text-white py-5 rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl shadow-purple-700/20 transition-all active:scale-95"
+              >
+                Authorize Access
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       <Sidebar 
         currentView={currentView} 
         onViewChange={setCurrentView} 
@@ -334,6 +352,9 @@ const App: React.FC = () => {
         onTrackSelect={setSelectedTrackId}
         selectedSubcategoryId={selectedSubcategoryId}
         onSubcategorySelect={setSelectedSubcategoryId}
+        isAdmin={isAuthenticated}
+        onAdminLogin={() => setShowLoginModal(true)}
+        onAdminLogout={handleLogout}
       />
       <main className="flex-1 flex flex-col relative overflow-y-auto px-6 sm:px-12 py-8 sm:py-12 scroll-smooth no-scrollbar">
         <header className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12 sm:mb-16">
@@ -371,12 +392,14 @@ const App: React.FC = () => {
                 />
               </div>
             </div>
-            <button 
-              onClick={() => handleCreateProject()}
-              className="w-full md:w-auto flex items-center justify-center gap-3 bg-purple-700 text-white px-8 sm:px-10 py-4 sm:py-5 rounded-[1.5rem] sm:rounded-[2rem] text-[11px] sm:text-[13px] font-black uppercase tracking-widest hover:bg-slate-950 shadow-2xl transition-all active:scale-95"
-            >
-              {ICONS.Plus} ADD TUTORIAL
-            </button>
+            {isAuthenticated && (
+              <button 
+                onClick={() => handleCreateProject()}
+                className="w-full md:w-auto flex items-center justify-center gap-3 bg-purple-700 text-white px-8 sm:px-10 py-4 sm:py-5 rounded-[1.5rem] sm:rounded-[2rem] text-[11px] sm:text-[13px] font-black uppercase tracking-widest hover:bg-slate-950 shadow-2xl transition-all active:scale-95"
+              >
+                {ICONS.Plus} ADD TUTORIAL
+              </button>
+            )}
           </div>
         </header>
         <div className="space-y-24 sm:space-y-32 pb-20">
