@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Project, LearningTrack } from '../types';
 import { ICONS } from '../constants';
 import VideoPlayer from './VideoPlayer';
@@ -12,24 +12,20 @@ interface ProjectViewerProps {
 }
 
 const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, onEdit }) => {
+  const [showHeroVideo, setShowHeroVideo] = useState(false);
+
   const getYoutubeUrl = (videoUrl: string) => {
-    try {
-      const urlObj = new URL(videoUrl);
-      let videoId = '';
-      if (urlObj.hostname.includes('youtu.be')) videoId = urlObj.pathname.slice(1);
-      else if (urlObj.hostname.includes('youtube.com')) videoId = urlObj.searchParams.get('v') || '';
-      return videoId ? `https://www.youtube.com/watch?v=${videoId}` : videoUrl;
-    } catch (e) { return videoUrl; }
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = videoUrl.match(regExp);
+    const id = (match && match[7].length === 11) ? match[7] : null;
+    return id ? `https://www.youtube.com/watch?v=${id}` : videoUrl;
   };
 
   const getYoutubeThumbnail = (videoUrl: string) => {
-    try {
-      const urlObj = new URL(videoUrl);
-      let videoId = '';
-      if (urlObj.hostname.includes('youtu.be')) videoId = urlObj.pathname.slice(1);
-      else if (urlObj.hostname.includes('youtube.com')) videoId = urlObj.searchParams.get('v') || '';
-      return videoId ? `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg` : null;
-    } catch (e) { return null; }
+    const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
+    const match = videoUrl.match(regExp);
+    const id = (match && match[7].length === 11) ? match[7] : null;
+    return id ? `https://img.youtube.com/vi/${id}/maxresdefault.jpg` : null;
   };
 
   const firstVideo = React.useMemo(() => {
@@ -96,28 +92,41 @@ const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, o
       </nav>
 
       {/* Hero Header */}
-      <header className="relative h-[60vh] bg-slate-950 flex items-center justify-center overflow-hidden">
-        <img src={displayThumbnail} className="absolute inset-0 w-full h-full object-cover opacity-50 blur-sm scale-110" alt="" />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
-        <div className="relative z-10 text-center px-10 max-w-5xl">
-          <div className="inline-block px-8 py-3 bg-purple-700 rounded-full text-[11px] font-black text-white uppercase tracking-[0.4em] mb-12 animate-in slide-in-from-top-6 duration-1000 shadow-2xl border border-white/10">
-            EXCELLENCE IN LEARNING
+      <header className="relative h-[70vh] bg-slate-950 flex items-center justify-center overflow-hidden">
+        {showHeroVideo && firstVideo?.content ? (
+          <div className="absolute inset-0 w-full h-full z-20">
+             <VideoPlayer url={firstVideo.content} autoPlay={true} className="rounded-none h-full border-0" />
+             <button 
+               onClick={() => setShowHeroVideo(false)}
+               className="absolute top-8 right-8 z-40 p-4 bg-black/50 text-white rounded-full hover:bg-red-600 transition-colors"
+             >
+               {ICONS.Back}
+             </button>
           </div>
-          <h1 className="text-7xl md:text-9xl font-black text-white uppercase tracking-tighter leading-[0.85] animate-in fade-in zoom-in duration-1000 drop-shadow-2xl">
-            {project.title}
-          </h1>
-          <div className="mt-14 flex items-center justify-center gap-8 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300">
-             {firstVideo?.content && (
-               <button 
-                onClick={() => window.open(getYoutubeUrl(firstVideo.content), '_blank')}
-                className="flex items-center gap-4 px-12 py-5 bg-white text-slate-950 rounded-full text-[13px] font-black uppercase tracking-[0.2em] hover:bg-purple-600 hover:text-white transition-all shadow-2xl group"
-               >
-                 {ICONS.Play} Watch On YouTube
-                 <span className="group-hover:translate-x-1 transition-transform">{ICONS.External}</span>
-               </button>
-             )}
-          </div>
-        </div>
+        ) : (
+          <>
+            <img src={displayThumbnail} className="absolute inset-0 w-full h-full object-cover opacity-50 blur-sm scale-110" alt="" />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/60 to-transparent" />
+            <div className="relative z-10 text-center px-10 max-w-5xl">
+              <div className="inline-block px-8 py-3 bg-purple-700 rounded-full text-[11px] font-black text-white uppercase tracking-[0.4em] mb-12 shadow-2xl border border-white/10">
+                EXCELLENCE IN LEARNING
+              </div>
+              <h1 className="text-7xl md:text-9xl font-black text-white uppercase tracking-tighter leading-[0.85] drop-shadow-2xl">
+                {project.title}
+              </h1>
+              <div className="mt-14 flex items-center justify-center gap-8">
+                 {firstVideo?.content && (
+                   <button 
+                    onClick={() => setShowHeroVideo(true)}
+                    className="flex items-center gap-4 px-12 py-5 bg-white text-slate-950 rounded-full text-[13px] font-black uppercase tracking-[0.2em] hover:bg-purple-600 hover:text-white transition-all shadow-2xl group"
+                   >
+                     {ICONS.Play} Start Tutorial In-App
+                   </button>
+                 )}
+              </div>
+            </div>
+          </>
+        )}
       </header>
 
       {/* Dynamic Content Sections */}

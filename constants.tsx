@@ -17,6 +17,7 @@ import {
   Plus,
   Settings,
   ChevronRight,
+  ChevronDown,
   ExternalLink,
   GripVertical,
   Minus,
@@ -44,6 +45,7 @@ export const ICONS = {
   Plus: <Plus size={18} />,
   Settings: <Settings size={18} />,
   ChevronRight: <ChevronRight size={14} />,
+  ChevronDown: <ChevronDown size={14} />,
   External: <ExternalLink size={14} />,
   Grip: <GripVertical size={16} />,
   Divider: <Minus size={18} />,
@@ -58,18 +60,28 @@ export const DEFAULT_TRACKS: LearningTrack[] = [
     id: 'ai-2026',
     title: 'AI FOR FUN 2026',
     subtitle: 'VIDEO TUTORIALS FOR AI FOR FUN 2026',
-    icon: '🤖'
+    icon: '🤖',
+    subcategories: [
+      { id: 'ai-intro', title: 'Getting Started' },
+      { id: 'ai-vision', title: 'Computer Vision' },
+      { id: 'ai-nlp', title: 'Natural Language' }
+    ]
   },
   {
     id: 'code-2026',
     title: 'CODE FOR FUN 2026',
     subtitle: 'VIDEO TUTORIALS FOR CODE FOR FUN 2026',
-    icon: '🚀'
+    icon: '🚀',
+    subcategories: [
+      { id: 'code-block', title: 'Block Programming' },
+      { id: 'code-python', title: 'Python Basics' }
+    ]
   },
   {
     id: 'code-2024',
     title: 'CODE FOR FUN 2024',
     subtitle: 'VIDEO TUTORIALS FOR CODE FOR FUN 2024',
-    icon: '📜'
+    icon: '📜',
+    subcategories: []
   }
 ];

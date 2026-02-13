@@ -34,7 +34,13 @@ export interface Project {
   status: ProjectStatus;
   lastEdited: string;
   trackId: string;
+  subcategoryId?: string; // Optional link to subcategory
   sections: Section[];
+}
+
+export interface Subcategory {
+  id: string;
+  title: string;
 }
 
 export interface LearningTrack {
@@ -42,6 +48,7 @@ export interface LearningTrack {
   title: string;
   subtitle: string;
   icon: string;
+  subcategories?: Subcategory[];
 }
 
 export type ViewState = 'home' | 'editor' | 'admin' | 'viewer';
