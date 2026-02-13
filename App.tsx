@@ -14,7 +14,6 @@ const DEMO_PROJECTS: Project[] = [
     status: ProjectStatus.PUBLISHED,
     lastEdited: 'Just now',
     trackId: 'ai-2026',
-    // Fix: Rename subcategories to subcategoryId to match Project type definition
     subcategoryId: undefined,
     sections: [{
       id: 'main-section',
@@ -47,6 +46,11 @@ const DEMO_PROJECTS: Project[] = [
 ];
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginUsername, setLoginUsername] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
   const [currentView, setCurrentView] = useState<ViewState>('home');
   const [tracks, setTracks] = useState<LearningTrack[]>(DEFAULT_TRACKS);
   const [projects, setProjects] = useState<Project[]>(DEMO_PROJECTS);
@@ -55,6 +59,16 @@ const App: React.FC = () => {
   const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loginUsername === 'EPEDUSUPPORT' && loginPassword === '12345678') {
+      setIsAuthenticated(true);
+      setLoginError('');
+    } else {
+      setLoginError('Invalid credentials. Please try again.');
+    }
+  };
 
   const getYoutubeThumbnail = (videoUrl: string) => {
     try {
@@ -117,7 +131,6 @@ const App: React.FC = () => {
     handleProjectClick(p);
   };
 
-  // Reordering logic
   const onProjectDragStart = (e: React.DragEvent, id: string) => {
     setDraggedProjectId(id);
     e.dataTransfer.setData('projectId', id);
@@ -126,25 +139,76 @@ const App: React.FC = () => {
   const onProjectDragOver = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
     if (!draggedProjectId || draggedProjectId === targetId) return;
-
     const draggedIdx = projects.findIndex(p => p.id === draggedProjectId);
     const targetIdx = projects.findIndex(p => p.id === targetId);
-    
     const draggedProj = projects[draggedIdx];
     const targetProj = projects[targetIdx];
-
     if (draggedProj.trackId !== targetProj.trackId || draggedProj.subcategoryId !== targetProj.subcategoryId) return;
-
     const newProjects = [...projects];
     const [movedProject] = newProjects.splice(draggedIdx, 1);
     newProjects.splice(targetIdx, 0, movedProject);
-    
     setProjects(newProjects);
   };
 
   const onProjectDragEnd = () => {
     setDraggedProjectId(null);
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+        <div className="w-full max-w-md bg-white rounded-[3rem] p-12 shadow-2xl animate-slide-up">
+          <div className="flex flex-col items-center mb-10">
+            <div className="w-16 h-16 bg-purple-700 rounded-2xl flex items-center justify-center text-white shadow-xl shadow-purple-900/20 mb-6">
+              <div className="w-8 h-8 border-4 border-white rounded-xl flex items-center justify-center">
+                <div className="w-2 h-2 bg-white rounded-full"></div>
+              </div>
+            </div>
+            <h1 className="text-3xl font-black text-slate-950 uppercase tracking-tighter text-center">EP Education</h1>
+            <p className="text-[11px] font-black text-purple-700 uppercase tracking-[0.3em] mt-2">Tutorial Management Hub</p>
+          </div>
+
+          <form onSubmit={handleLogin} className="space-y-6">
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Username</label>
+              <input 
+                type="text" 
+                value={loginUsername}
+                onChange={(e) => setLoginUsername(e.target.value)}
+                className="w-full px-8 py-4 bg-slate-100 border-2 border-transparent focus:border-purple-600 focus:bg-white rounded-2xl text-sm font-bold focus:outline-none transition-all"
+                placeholder="EPEDUSUPPORT"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Password</label>
+              <input 
+                type="password" 
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                className="w-full px-8 py-4 bg-slate-100 border-2 border-transparent focus:border-purple-600 focus:bg-white rounded-2xl text-sm font-bold focus:outline-none transition-all"
+                placeholder="••••••••"
+              />
+            </div>
+
+            {loginError && (
+              <p className="text-[10px] font-bold text-red-500 uppercase text-center">{loginError}</p>
+            )}
+
+            <button 
+              type="submit"
+              className="w-full bg-purple-700 hover:bg-slate-950 text-white py-5 rounded-2xl text-[12px] font-black uppercase tracking-widest shadow-xl shadow-purple-700/20 transition-all active:scale-95"
+            >
+              Authorize Access
+            </button>
+          </form>
+
+          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest text-center mt-12">
+            © 2026 EP Education • Support Hub
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const filteredProjects = projects.filter(p => 
     p.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -153,7 +217,6 @@ const App: React.FC = () => {
   const renderProjectCard = (project: Project) => {
     const displayImg = getProjectDisplayThumbnail(project);
     const isDragging = draggedProjectId === project.id;
-
     return (
       <div 
         key={project.id}
@@ -174,9 +237,7 @@ const App: React.FC = () => {
           />
           <div className="absolute inset-0 bg-slate-950/0 group-hover:bg-purple-950/40 transition-all duration-500" />
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-             <div 
-               className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center text-purple-700 shadow-2xl scale-75 group-hover:scale-100 transition-transform duration-500"
-             >
+             <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center text-purple-700 shadow-2xl scale-75 group-hover:scale-100 transition-transform duration-500">
                <div className="scale-125">{ICONS.Play}</div>
              </div>
           </div>
@@ -223,36 +284,25 @@ const App: React.FC = () => {
   const getBreadcrumbs = () => {
     const crumbs = [];
     crumbs.push(
-      <button 
-        key="all" 
-        onClick={() => { setSelectedTrackId(null); setSelectedSubcategoryId(null); }}
-        className="hover:text-purple-700 transition-colors"
-      >
+      <button key="all" onClick={() => { setSelectedTrackId(null); setSelectedSubcategoryId(null); }} className="hover:text-purple-700 transition-colors">
         LEARNING GALLERY
       </button>
     );
-
     if (selectedTrackId) {
       const track = tracks.find(t => t.id === selectedTrackId);
       crumbs.push(<span key="s1" className="text-slate-300 mx-1 sm:mx-2">/</span>);
       crumbs.push(
-        <button 
-          key="track" 
-          onClick={() => setSelectedSubcategoryId(null)}
-          className={`hover:text-purple-700 transition-colors ${!selectedSubcategoryId ? 'text-purple-700' : ''}`}
-        >
+        <button key="track" onClick={() => setSelectedSubcategoryId(null)} className={`hover:text-purple-700 transition-colors ${!selectedSubcategoryId ? 'text-purple-700' : ''}`}>
           {track?.title}
         </button>
       );
     }
-
     if (selectedSubcategoryId && selectedTrackId) {
       const track = tracks.find(t => t.id === selectedTrackId);
       const sub = track?.subcategories?.find(s => s.id === selectedSubcategoryId);
       crumbs.push(<span key="s2" className="text-slate-300 mx-1 sm:mx-2">/</span>);
       crumbs.push(<span key="sub" className="text-purple-700">{sub?.title}</span>);
     }
-
     return crumbs;
   };
 
@@ -290,7 +340,6 @@ const App: React.FC = () => {
         selectedSubcategoryId={selectedSubcategoryId}
         onSubcategorySelect={setSelectedSubcategoryId}
       />
-      
       <main className="flex-1 flex flex-col relative overflow-y-auto px-6 sm:px-12 py-8 sm:py-12 scroll-smooth no-scrollbar">
         <header className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12 sm:mb-16">
           <div className="group">
@@ -301,7 +350,6 @@ const App: React.FC = () => {
               EDUCATIONAL HUB • CURATED BY EXPERTS
             </p>
           </div>
-          
           <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-6">
             <div className="flex items-center gap-4 w-full md:w-auto">
               {(selectedTrackId || selectedSubcategoryId) && (
@@ -336,47 +384,31 @@ const App: React.FC = () => {
             </button>
           </div>
         </header>
-
         <div className="space-y-24 sm:space-y-32 pb-20">
           {visibleTracks.map((track) => {
             const trackProjects = filteredProjects.filter(p => p.trackId === track.id);
-            const subcategoriesToRender = selectedSubcategoryId 
-              ? track.subcategories?.filter(s => s.id === selectedSubcategoryId) 
-              : track.subcategories;
-            
+            const subcategoriesToRender = selectedSubcategoryId ? track.subcategories?.filter(s => s.id === selectedSubcategoryId) : track.subcategories;
             const hasSubcategories = subcategoriesToRender && subcategoriesToRender.length > 0;
-            
             return (
               <section key={track.id} className="space-y-10 sm:space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
                 {!selectedTrackId && (
-                  <div 
-                    className="flex items-center justify-between border-b-4 border-slate-200 pb-6 sm:pb-8 cursor-pointer group"
-                    onClick={() => setSelectedTrackId(track.id)}
-                  >
+                  <div className="flex items-center justify-between border-b-4 border-slate-200 pb-6 sm:pb-8 cursor-pointer group" onClick={() => setSelectedTrackId(track.id)}>
                     <div className="flex items-center gap-4 sm:gap-6">
                       <span className="text-3xl sm:text-5xl bg-white p-3 sm:p-5 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-xl border-2 border-slate-100 group-hover:scale-105 transition-transform">{track.icon}</span>
                       <div>
-                        <h3 className="text-xl sm:text-3xl font-black text-slate-950 uppercase tracking-tight leading-none group-hover:text-purple-700 transition-colors">
-                          {track.title}
-                        </h3>
-                        <p className="text-[10px] sm:text-[13px] font-black text-slate-600 uppercase tracking-[0.2em] mt-2 sm:mt-3">
-                          {track.subtitle}
-                        </p>
+                        <h3 className="text-xl sm:text-3xl font-black text-slate-950 uppercase tracking-tight leading-none group-hover:text-purple-700 transition-colors">{track.title}</h3>
+                        <p className="text-[10px] sm:text-[13px] font-black text-slate-600 uppercase tracking-[0.2em] mt-2 sm:mt-3">{track.subtitle}</p>
                       </div>
                     </div>
                   </div>
                 )}
-
                 {hasSubcategories ? (
                   <div className="space-y-12 sm:space-y-16">
                     {subcategoriesToRender?.map(sub => {
                       const subProjects = trackProjects.filter(p => p.subcategoryId === sub.id);
                       return (
                         <div key={sub.id} className="space-y-6 sm:space-y-8 pl-3 sm:pl-4 border-l-4 border-purple-100">
-                          <h4 
-                            className={`text-lg sm:text-xl font-black uppercase tracking-widest flex items-center gap-3 sm:gap-4 cursor-pointer hover:text-purple-900 transition-colors ${selectedSubcategoryId === sub.id ? 'text-purple-900' : 'text-purple-700'}`}
-                            onClick={() => setSelectedSubcategoryId(sub.id)}
-                          >
+                          <h4 className={`text-lg sm:text-xl font-black uppercase tracking-widest flex items-center gap-3 sm:gap-4 cursor-pointer hover:text-purple-900 transition-colors ${selectedSubcategoryId === sub.id ? 'text-purple-900' : 'text-purple-700'}`} onClick={() => setSelectedSubcategoryId(sub.id)}>
                             <span className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${selectedSubcategoryId === sub.id ? 'bg-purple-900 scale-125' : 'bg-purple-600'}`} />
                             {sub.title}
                           </h4>
