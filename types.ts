@@ -34,7 +34,7 @@ export interface Project {
   status: ProjectStatus;
   lastEdited: string;
   trackId: string;
-  subcategoryId?: string; // Optional link to subcategory
+  subcategoryId?: string | null; // Optional link to subcategory
   sections: Section[];
 }
 

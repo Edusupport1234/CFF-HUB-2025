@@ -1,10 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import ProjectEditor from './components/ProjectEditor';
 import ProjectViewer from './components/ProjectViewer';
 import { ICONS, DEFAULT_TRACKS } from './constants';
 import { ViewState, Project, LearningTrack, ProjectStatus } from './types';
+import { db } from './firebase';
+import { ref, onValue, set } from 'firebase/database';
 
 const DEMO_PROJECTS: Project[] = [
   {
@@ -14,7 +16,7 @@ const DEMO_PROJECTS: Project[] = [
     status: ProjectStatus.PUBLISHED,
     lastEdited: 'Just now',
     trackId: 'ai-2026',
-    subcategoryId: undefined,
+    subcategoryId: null,
     sections: [{
       id: 'main-section',
       columns: 1,
@@ -53,13 +55,57 @@ const App: React.FC = () => {
   const [loginError, setLoginError] = useState('');
 
   const [currentView, setCurrentView] = useState<ViewState>('home');
-  const [tracks, setTracks] = useState<LearningTrack[]>(DEFAULT_TRACKS);
-  const [projects, setProjects] = useState<Project[]>(DEMO_PROJECTS);
+  const [tracks, setTracks] = useState<LearningTrack[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Sync Tracks with Firebase
+  useEffect(() => {
+    const tracksRef = ref(db, 'tracks');
+    const unsubscribe = onValue(tracksRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        const tracksList = Array.isArray(data) ? data : Object.values(data) as LearningTrack[];
+        setTracks(tracksList);
+      } else {
+        // Seed initial tracks if empty
+        set(tracksRef, DEFAULT_TRACKS);
+        setTracks(DEFAULT_TRACKS);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Sync Projects with Firebase
+  useEffect(() => {
+    const projectsRef = ref(db, 'projects');
+    const unsubscribe = onValue(projectsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        // Convert object to array if stored as object, or handle array
+        const projectsList = Array.isArray(data) ? data : Object.values(data) as Project[];
+        setProjects(projectsList);
+      } else {
+        // Seed initial projects if empty
+        set(projectsRef, DEMO_PROJECTS);
+        setProjects(DEMO_PROJECTS);
+      }
+      setIsLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleTracksReorder = (newTracks: LearningTrack[]) => {
+    setTracks(newTracks);
+    // Remove undefined values before saving to Firebase
+    const cleanedTracks = JSON.parse(JSON.stringify(newTracks));
+    set(ref(db, 'tracks'), cleanedTracks);
+  };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -114,7 +160,7 @@ const App: React.FC = () => {
       status: ProjectStatus.DRAFT,
       lastEdited: 'Just now',
       trackId: trackId || selectedTrackId || tracks[0]?.id || '',
-      subcategoryId: subcategoryId || selectedSubcategoryId || undefined,
+      subcategoryId: subcategoryId || selectedSubcategoryId || null,
       sections: []
     };
     setSelectedProject(newProject);
@@ -122,11 +168,15 @@ const App: React.FC = () => {
   };
 
   const handleSaveProject = (updated: Project) => {
-    setProjects(prev => {
-      const exists = prev.find(p => p.id === updated.id);
-      if (exists) return prev.map(p => (p.id === updated.id ? updated : p));
-      return [updated, ...prev];
-    });
+    const newProjects = projects.find(p => p.id === updated.id)
+      ? projects.map(p => (p.id === updated.id ? updated : p))
+      : [updated, ...projects];
+    
+    setProjects(newProjects);
+    // Remove undefined values before saving to Firebase
+    const cleanedProjects = JSON.parse(JSON.stringify(newProjects));
+    set(ref(db, 'projects'), cleanedProjects);
+    
     setCurrentView('home');
     setSelectedProject(null);
   };
@@ -158,6 +208,9 @@ const App: React.FC = () => {
 
   const onProjectDragEnd = () => {
     setDraggedProjectId(null);
+    // Persist the final order after dragging ends
+    const cleanedProjects = JSON.parse(JSON.stringify(projects));
+    set(ref(db, 'projects'), cleanedProjects);
   };
 
   const filteredProjects = projects.filter(p => 
@@ -347,7 +400,7 @@ const App: React.FC = () => {
         currentView={currentView} 
         onViewChange={setCurrentView} 
         tracks={tracks}
-        onTracksReorder={setTracks}
+        onTracksReorder={handleTracksReorder}
         selectedTrackId={selectedTrackId}
         onTrackSelect={setSelectedTrackId}
         selectedSubcategoryId={selectedSubcategoryId}
@@ -403,7 +456,12 @@ const App: React.FC = () => {
           </div>
         </header>
         <div className="space-y-24 sm:space-y-32 pb-20">
-          {visibleTracks.map((track) => {
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-700 rounded-full animate-spin"></div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Syncing with Cloud...</p>
+            </div>
+          ) : (Array.isArray(visibleTracks) ? visibleTracks : []).map((track) => {
             const trackProjects = filteredProjects.filter(p => p.trackId === track.id);
             const subcategoriesToRender = selectedSubcategoryId ? track.subcategories?.filter(s => s.id === selectedSubcategoryId) : track.subcategories;
             const hasSubcategories = subcategoriesToRender && subcategoriesToRender.length > 0;

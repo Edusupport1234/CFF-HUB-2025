@@ -32,7 +32,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [draggedTrackIndex, setDraggedTrackIndex] = useState<number | null>(null);
   const [draggedSubIndex, setDraggedSubIndex] = useState<{ trackIdx: number, subIdx: number } | null>(null);
-  const [expandedTrackIds, setExpandedTrackIds] = useState<Set<string>>(new Set(tracks.map(t => t.id)));
+  const [expandedTrackIds, setExpandedTrackIds] = useState<Set<string>>(new Set((Array.isArray(tracks) ? tracks : []).map(t => t.id)));
   
   // Inline adding state
   const [addingTrack, setAddingTrack] = useState(false);
@@ -239,7 +239,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         )}
         
         <div className="space-y-2">
-          {tracks.map((track, tIdx) => (
+          {(Array.isArray(tracks) ? tracks : []).map((track, tIdx) => (
             <div key={track.id} className="space-y-1">
               <div
                 draggable={isAdmin}
