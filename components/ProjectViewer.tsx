@@ -30,9 +30,10 @@ const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, o
   };
 
   const firstVideo = React.useMemo(() => {
+    if (!project?.sections || !Array.isArray(project.sections)) return null;
     return project.sections
-      .flatMap(s => s.blocks)
-      .find(b => b.type === 'video' && b.content);
+      .flatMap(s => s?.blocks || [])
+      .find(b => b && b.type === 'video' && b.content);
   }, [project]);
 
   const displayThumbnail = React.useMemo(() => {
@@ -134,48 +135,51 @@ const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, o
 
       {/* Dynamic Content Sections */}
       <main className="w-full">
-        {project.sections.map((section) => (
+        {(project.sections || []).map((section) => (
           <div 
             key={section.id} 
             className={`${getSectionBg(section.style?.background)} ${section.style?.padding === 'compact' ? 'py-16' : section.style?.padding === 'large' ? 'py-44' : 'py-28'} border-b border-slate-100 last:border-0`}
           >
             <div className="max-w-7xl mx-auto px-12 grid grid-cols-12 gap-12 md:gap-16">
-              {section.blocks.map((block) => (
-                <div 
-                  key={block.id} 
-                  className={`col-span-12 md:col-span-${block.gridSpan || 12} flex flex-col`}
-                >
-                  {block.type === 'heading' && (
-                    <h2 className="text-4xl font-black text-slate-950 uppercase tracking-tight mb-10 border-l-[12px] border-purple-700 pl-8 leading-none">{block.content}</h2>
-                  )}
-                  {block.type === 'text' && (
-                    <div className="max-w-none">
-                      <p className="text-slate-900 leading-relaxed text-2xl font-bold whitespace-pre-wrap">
-                        {block.content}
-                      </p>
-                    </div>
-                  )}
-                  {block.type === 'image' && block.content && (
-                    <div className="rounded-[4rem] overflow-hidden shadow-2xl border-4 border-white transform transition-transform hover:scale-[1.01] duration-500">
-                      <img src={block.content} className="w-full h-auto" alt="Learning Material" />
-                    </div>
-                  )}
-                  {block.type === 'video' && block.content && (
-                    <VideoPlayer url={block.content} className="shadow-2xl rounded-[4rem]" />
-                  )}
-                  {block.type === 'divider' && (
-                    <div className="py-16"><div className="h-1.5 w-full bg-slate-200 opacity-80 rounded-full shadow-inner" /></div>
-                  )}
-                  {block.type === 'spacer' && (
-                    <div className="h-28" />
-                  )}
-                </div>
-              ))}
+              {(section.blocks || []).map((block) => {
+                if (!block) return null;
+                return (
+                  <div 
+                    key={block.id} 
+                    className={`col-span-12 md:col-span-${block.gridSpan || 12} flex flex-col`}
+                  >
+                    {block.type === 'heading' && (
+                      <h2 className="text-4xl font-black text-slate-950 uppercase tracking-tight mb-10 border-l-[12px] border-purple-700 pl-8 leading-none">{block.content}</h2>
+                    )}
+                    {block.type === 'text' && (
+                      <div className="max-w-none">
+                        <p className="text-slate-900 leading-relaxed text-2xl font-bold whitespace-pre-wrap">
+                          {block.content}
+                        </p>
+                      </div>
+                    )}
+                    {block.type === 'image' && block.content && (
+                      <div className="rounded-[4rem] overflow-hidden shadow-2xl border-4 border-white transform transition-transform hover:scale-[1.01] duration-500">
+                        <img src={block.content} className="w-full h-auto" alt="Learning Material" />
+                      </div>
+                    )}
+                    {block.type === 'video' && block.content && (
+                      <VideoPlayer url={block.content} className="shadow-2xl rounded-[4rem]" />
+                    )}
+                    {block.type === 'divider' && (
+                      <div className="py-16"><div className="h-1.5 w-full bg-slate-200 opacity-80 rounded-full shadow-inner" /></div>
+                    )}
+                    {block.type === 'spacer' && (
+                      <div className="h-28" />
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ))}
 
-        {project.sections.length === 0 && (
+        {(!project.sections || project.sections.length === 0) && (
           <div className="text-center py-56 bg-slate-50">
             <p className="text-slate-400 font-black uppercase tracking-[0.5em] text-sm">Building course content...</p>
           </div>

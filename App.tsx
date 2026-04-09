@@ -141,9 +141,9 @@ const App: React.FC = () => {
   const getProjectDisplayThumbnail = (p: Project) => {
     const isDefault = p.thumbnail.includes('unsplash.com/photo-1498050108023-c5249f4df085');
     if (!isDefault && p.thumbnail) return p.thumbnail;
-    const videoUrl = p.sections
-      .flatMap(section => section.blocks)
-      .find(block => block.type === 'video' && block.content)?.content;
+    const videoUrl = (p.sections || [])
+      .flatMap(section => section?.blocks || [])
+      .find(block => block && block.type === 'video' && block.content)?.content;
     if (videoUrl) {
       const ytThumb = getYoutubeThumbnail(videoUrl);
       if (ytThumb) return ytThumb;

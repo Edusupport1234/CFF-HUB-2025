@@ -16,10 +16,11 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
   const [thumbnail, setThumbnail] = useState(project.thumbnail);
   const [trackId, setTrackId] = useState(project.trackId);
   const [subcategoryId, setSubcategoryId] = useState(project.subcategoryId || '');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Extract initial values from existing project structure if they exist
-  const initialVideo = project.sections?.[0]?.blocks.find(b => b.type === 'video')?.content || '';
-  const initialDesc = project.sections?.[0]?.blocks.find(b => b.type === 'text')?.content || '';
+  const initialVideo = project.sections?.[0]?.blocks?.find(b => b && b.type === 'video')?.content || '';
+  const initialDesc = project.sections?.[0]?.blocks?.find(b => b && b.type === 'text')?.content || '';
   
   const [videoLink, setVideoLink] = useState(initialVideo);
   const [description, setDescription] = useState(initialDesc);
@@ -27,6 +28,18 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSave = () => {
+    const newErrors: Record<string, string> = {};
+    if (!title.trim()) newErrors.title = 'Title is required';
+    if (!videoLink.trim()) newErrors.videoLink = 'Video URL is required';
+    if (!description.trim()) newErrors.description = 'Description is required';
+    if (!thumbnail) newErrors.thumbnail = 'Thumbnail is required';
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    setErrors({});
     // Construct the sections array to match the expected format for ProjectViewer
     const blocks: ContentBlock[] = [];
     
@@ -123,10 +136,14 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
               <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Tutorial Title</label>
               <input 
                 value={title} 
-                onChange={e => setTitle(e.target.value)}
+                onChange={e => {
+                  setTitle(e.target.value);
+                  if (errors.title) setErrors(prev => { const n = {...prev}; delete n.title; return n; });
+                }}
                 placeholder="Enter a descriptive title..."
-                className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-[16px] font-bold text-slate-950 focus:outline-none focus:border-purple-600 transition-all"
+                className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl text-[16px] font-bold text-slate-950 focus:outline-none transition-all ${errors.title ? 'border-red-500' : 'border-slate-100 focus:border-purple-600'}`}
               />
+              {errors.title && <p className="text-[10px] font-black text-red-500 uppercase tracking-widest ml-4">{errors.title}</p>}
             </div>
 
             <div className="grid grid-cols-2 gap-8">
@@ -170,10 +187,14 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
               <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Video URL (YouTube/Vimeo)</label>
               <input 
                 value={videoLink} 
-                onChange={e => setVideoLink(e.target.value)}
+                onChange={e => {
+                  setVideoLink(e.target.value);
+                  if (errors.videoLink) setErrors(prev => { const n = {...prev}; delete n.videoLink; return n; });
+                }}
                 placeholder="Paste video link here..."
-                className="w-full px-6 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl text-[16px] font-bold text-slate-950 focus:outline-none focus:border-purple-600 transition-all"
+                className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl text-[16px] font-bold text-slate-950 focus:outline-none transition-all ${errors.videoLink ? 'border-red-500' : 'border-slate-100 focus:border-purple-600'}`}
               />
+              {errors.videoLink && <p className="text-[10px] font-black text-red-500 uppercase tracking-widest ml-4">{errors.videoLink}</p>}
               {videoLink && (
                 <div className="mt-4 rounded-[2rem] overflow-hidden border-2 border-slate-100 shadow-inner">
                   <VideoPlayer url={videoLink} className="rounded-none shadow-none border-0" />
@@ -185,11 +206,15 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
               <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Description & Steps</label>
               <textarea 
                 value={description} 
-                onChange={e => setDescription(e.target.value)}
+                onChange={e => {
+                  setDescription(e.target.value);
+                  if (errors.description) setErrors(prev => { const n = {...prev}; delete n.description; return n; });
+                }}
                 placeholder="Explain the tutorial steps and concepts here..."
                 rows={8}
-                className="w-full px-6 py-5 bg-slate-50 border-2 border-slate-100 rounded-2xl text-[16px] font-bold leading-relaxed text-slate-900 focus:outline-none focus:border-purple-600 transition-all resize-none"
+                className={`w-full px-6 py-5 bg-slate-50 border-2 rounded-2xl text-[16px] font-bold leading-relaxed text-slate-900 focus:outline-none transition-all resize-none ${errors.description ? 'border-red-500' : 'border-slate-100 focus:border-purple-600'}`}
               />
+              {errors.description && <p className="text-[10px] font-black text-red-500 uppercase tracking-widest ml-4">{errors.description}</p>}
             </div>
           </div>
 
@@ -205,7 +230,7 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
               </button>
             </div>
             
-            <div className="relative group aspect-video rounded-[2.5rem] overflow-hidden bg-slate-100 border-4 border-dashed border-slate-200 flex flex-col items-center justify-center transition-all hover:border-purple-600">
+            <div className={`relative group aspect-video rounded-[2.5rem] overflow-hidden bg-slate-100 border-4 border-dashed flex flex-col items-center justify-center transition-all ${errors.thumbnail ? 'border-red-500 bg-red-50' : 'border-slate-200 hover:border-purple-600'}`}>
               {thumbnail ? (
                 <>
                   <img src={thumbnail} className="w-full h-full object-cover" alt="Tutorial Preview" />
