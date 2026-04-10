@@ -63,6 +63,22 @@ const App: React.FC = () => {
   const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // Custom Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    isDestructive?: boolean;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+  });
 
   // Sync Tracks with Firebase
   useEffect(() => {
@@ -185,6 +201,75 @@ const App: React.FC = () => {
     setSelectedProject(p);
     setCurrentView('viewer');
   };
+  
+  const handleDeleteProject = (e: React.MouseEvent, projectId: string) => {
+    e.stopPropagation();
+    if (!isAuthenticated) return;
+    
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Tutorial',
+      message: 'Are you sure you want to permanently delete this tutorial? This action cannot be undone.',
+      confirmText: 'Delete Tutorial',
+      isDestructive: true,
+      onConfirm: () => {
+        const newProjects = projects.filter(p => p.id !== projectId);
+        setProjects(newProjects);
+        const cleanedProjects = JSON.parse(JSON.stringify(newProjects));
+        set(ref(db, 'projects'), cleanedProjects);
+        
+        if (selectedProject?.id === projectId) {
+          setSelectedProject(null);
+          setCurrentView('home');
+        }
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
+  const handleDeleteTrack = (trackId: string) => {
+    if (!isAuthenticated) return;
+    
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Track',
+      message: 'Delete this track and all its subcategories? Tutorials in this track will remain but will be unassigned.',
+      confirmText: 'Delete Track',
+      isDestructive: true,
+      onConfirm: () => {
+        const newTracks = tracks.filter(t => t.id !== trackId);
+        handleTracksReorder(newTracks);
+        if (selectedTrackId === trackId) {
+          setSelectedTrackId(null);
+          setSelectedSubcategoryId(null);
+        }
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
+  const handleDeleteSubcategory = (trackId: string, subId: string) => {
+    if (!isAuthenticated) return;
+    
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Subcategory',
+      message: 'Are you sure you want to delete this subcategory?',
+      confirmText: 'Delete Subcategory',
+      isDestructive: true,
+      onConfirm: () => {
+        const newTracks = tracks.map(t => {
+          if (t.id === trackId) {
+            return { ...t, subcategories: t.subcategories?.filter(s => s.id !== subId) };
+          }
+          return t;
+        });
+        handleTracksReorder(newTracks);
+        if (selectedSubcategoryId === subId) setSelectedSubcategoryId(null);
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
 
   const onProjectDragStart = (e: React.DragEvent, id: string) => {
     if (!isAuthenticated) return;
@@ -246,6 +331,14 @@ const App: React.FC = () => {
                <div className="scale-125">{ICONS.Play}</div>
              </div>
           </div>
+          {isAuthenticated && (
+            <button 
+              onClick={(e) => handleDeleteProject(e, project.id)}
+              className="absolute top-4 right-4 sm:top-6 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 bg-white/90 backdrop-blur-md rounded-xl sm:rounded-2xl flex items-center justify-center text-red-500 shadow-xl opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white z-20"
+            >
+              <div className="scale-90 sm:scale-110">{ICONS.Delete}</div>
+            </button>
+          )}
         </div>
         <div className="p-6 sm:p-8">
           <div className="flex items-center gap-2 mb-4">
@@ -293,7 +386,7 @@ const App: React.FC = () => {
     const crumbs = [];
     crumbs.push(
       <button key="all" onClick={() => { setSelectedTrackId(null); setSelectedSubcategoryId(null); }} className="hover:text-purple-700 transition-colors">
-        LEARNING GALLERY
+        CFF VIDEO HUB
       </button>
     );
     if (selectedTrackId) {
@@ -314,31 +407,35 @@ const App: React.FC = () => {
     return crumbs;
   };
 
-  if (currentView === 'editor' && selectedProject) {
-    return (
-      <ProjectEditor 
-        project={selectedProject} 
-        tracks={tracks} 
-        onSave={handleSaveProject} 
-        onBack={() => { setCurrentView('home'); setSelectedProject(null); }} 
-      />
-    );
-  }
-
-  if (currentView === 'viewer' && selectedProject) {
-    return (
-      <ProjectViewer 
-        project={selectedProject}
-        track={tracks.find(t => t.id === selectedProject.trackId)}
-        onBack={() => { setCurrentView('home'); setSelectedProject(null); }}
-        onEdit={() => setCurrentView('editor')}
-        isAdmin={isAuthenticated}
-      />
-    );
-  }
-
   return (
     <div className="flex h-screen bg-slate-100 overflow-hidden relative">
+      {/* Confirmation Modal */}
+      {confirmModal.isOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="w-full max-w-md bg-white rounded-[3rem] p-10 shadow-2xl animate-slide-up">
+            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-8 ${confirmModal.isDestructive ? 'bg-red-50 text-red-600' : 'bg-purple-50 text-purple-700'}`}>
+              <div className="scale-150">{confirmModal.isDestructive ? ICONS.Delete : ICONS.Settings}</div>
+            </div>
+            <h3 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-4">{confirmModal.title}</h3>
+            <p className="text-slate-600 font-bold leading-relaxed mb-10">{confirmModal.message}</p>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+                className="flex-1 px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmModal.onConfirm}
+                className={`flex-1 px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest text-white transition-all shadow-xl active:scale-95 ${confirmModal.isDestructive ? 'bg-red-600 hover:bg-red-700' : 'bg-purple-700 hover:bg-purple-800'}`}
+              >
+                {confirmModal.confirmText || 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Login Modal */}
       {showLoginModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
@@ -396,128 +493,177 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <Sidebar 
-        currentView={currentView} 
-        onViewChange={setCurrentView} 
-        tracks={tracks}
-        onTracksReorder={handleTracksReorder}
-        selectedTrackId={selectedTrackId}
-        onTrackSelect={setSelectedTrackId}
-        selectedSubcategoryId={selectedSubcategoryId}
-        onSubcategorySelect={setSelectedSubcategoryId}
-        isAdmin={isAuthenticated}
-        onAdminLogin={() => setShowLoginModal(true)}
-        onAdminLogout={handleLogout}
-      />
-      <main className="flex-1 flex flex-col relative overflow-y-auto px-6 sm:px-12 py-8 sm:py-12 scroll-smooth no-scrollbar">
-        <header className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12 sm:mb-16">
-          <div className="group">
-            <h1 className="text-[28px] sm:text-[42px] font-black text-slate-950 leading-tight uppercase tracking-tighter flex items-center flex-wrap">
-              {getBreadcrumbs()}
-            </h1>
-            <p className="text-[11px] sm:text-[14px] font-black text-purple-700 uppercase tracking-[0.3em] mt-1">
-              EDUCATIONAL HUB • CURATED BY EXPERTS
-            </p>
-          </div>
-          <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-6">
-            <div className="flex items-center gap-4 w-full md:w-auto">
-              {(selectedTrackId || selectedSubcategoryId) && (
-                <button 
-                  onClick={() => { 
-                    if (selectedSubcategoryId) setSelectedSubcategoryId(null);
-                    else setSelectedTrackId(null);
-                  }}
-                  className="text-[9px] sm:text-[11px] font-black text-slate-500 hover:text-purple-700 uppercase tracking-widest flex items-center gap-2 transition-colors bg-white px-4 py-3 rounded-2xl border-2 border-slate-200 shadow-sm"
-                >
-                  {ICONS.Back} BACK
-                </button>
-              )}
-              <div className="relative flex-1 md:w-80">
-                <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 scale-75 sm:scale-100">
-                  {ICONS.Search}
-                </div>
-                <input 
-                  type="text" 
-                  placeholder="Search..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 sm:pl-14 pr-4 sm:pr-6 py-3 sm:py-4 bg-white border-2 border-slate-300 rounded-[1.5rem] sm:rounded-[2rem] text-[12px] sm:text-[14px] font-bold focus:outline-none focus:ring-4 focus:ring-purple-600/20 shadow-xl transition-all text-slate-950 placeholder:text-slate-500"
-                />
-              </div>
-            </div>
-            {isAuthenticated && (
-              <button 
-                onClick={() => handleCreateProject()}
-                className="w-full md:w-auto flex items-center justify-center gap-3 bg-purple-700 text-white px-8 sm:px-10 py-4 sm:py-5 rounded-[1.5rem] sm:rounded-[2rem] text-[11px] sm:text-[13px] font-black uppercase tracking-widest hover:bg-slate-950 shadow-2xl transition-all active:scale-95"
-              >
-                {ICONS.Plus} ADD TUTORIAL
-              </button>
-            )}
-          </div>
-        </header>
-        <div className="space-y-24 sm:space-y-32 pb-20">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-700 rounded-full animate-spin"></div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Syncing with Cloud...</p>
-            </div>
-          ) : (Array.isArray(visibleTracks) ? visibleTracks : []).map((track) => {
-            const trackProjects = filteredProjects.filter(p => p.trackId === track.id);
-            const subcategoriesToRender = selectedSubcategoryId ? track.subcategories?.filter(s => s.id === selectedSubcategoryId) : track.subcategories;
-            const hasSubcategories = subcategoriesToRender && subcategoriesToRender.length > 0;
-            return (
-              <section key={track.id} className="space-y-10 sm:space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                {!selectedTrackId && (
-                  <div className="flex items-center justify-between border-b-4 border-slate-200 pb-6 sm:pb-8 cursor-pointer group" onClick={() => setSelectedTrackId(track.id)}>
-                    <div className="flex items-center gap-4 sm:gap-6">
-                      <span className="text-3xl sm:text-5xl bg-white p-3 sm:p-5 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-xl border-2 border-slate-100 group-hover:scale-105 transition-transform">{track.icon}</span>
-                      <div>
-                        <h3 className="text-xl sm:text-3xl font-black text-slate-950 uppercase tracking-tight leading-none group-hover:text-purple-700 transition-colors">{track.title}</h3>
-                        <p className="text-[10px] sm:text-[13px] font-black text-slate-600 uppercase tracking-[0.2em] mt-2 sm:mt-3">{track.subtitle}</p>
-                      </div>
-                    </div>
+      {currentView === 'editor' && selectedProject ? (
+        <div className="flex-1 h-full overflow-hidden">
+          <ProjectEditor 
+            project={selectedProject} 
+            tracks={tracks} 
+            onSave={handleSaveProject} 
+            onBack={() => { setCurrentView('home'); setSelectedProject(null); }} 
+          />
+        </div>
+      ) : currentView === 'viewer' && selectedProject ? (
+        <div className="flex-1 h-full overflow-hidden">
+          <ProjectViewer 
+            project={selectedProject}
+            track={tracks.find(t => t.id === selectedProject.trackId)}
+            onBack={() => { setCurrentView('home'); setSelectedProject(null); }}
+            onEdit={() => setCurrentView('editor')}
+            onDelete={(e) => handleDeleteProject(e, selectedProject.id)}
+            isAdmin={isAuthenticated}
+          />
+        </div>
+      ) : (
+        <>
+          <Sidebar 
+            currentView={currentView} 
+            onViewChange={setCurrentView} 
+            tracks={tracks}
+            onTracksReorder={handleTracksReorder}
+            onDeleteTrack={handleDeleteTrack}
+            onDeleteSub={handleDeleteSubcategory}
+            selectedTrackId={selectedTrackId}
+            onTrackSelect={setSelectedTrackId}
+            selectedSubcategoryId={selectedSubcategoryId}
+            onSubcategorySelect={setSelectedSubcategoryId}
+            isAdmin={isAuthenticated}
+            onAdminLogin={() => setShowLoginModal(true)}
+            onAdminLogout={handleLogout}
+            isOpen={isSidebarOpen}
+            onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+            onClose={() => setIsSidebarOpen(false)}
+          />
+          <main className="flex-1 flex flex-col relative overflow-y-auto px-4 sm:px-12 py-6 sm:py-12 scroll-smooth no-scrollbar">
+            {/* Mobile Header */}
+            <div className="md:hidden flex items-center justify-between mb-8 bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 bg-purple-700 rounded-lg flex items-center justify-center text-white">
+                  <div className="w-4 h-4 border-2 border-white rounded flex items-center justify-center">
+                    <div className="w-1 h-1 bg-white rounded-full"></div>
                   </div>
+                </div>
+                <span className="text-xs font-black text-slate-950 uppercase tracking-tight">CFF HUB</span>
+              </div>
+              <button 
+                onClick={() => setIsSidebarOpen(true)}
+                className="p-2 bg-slate-100 rounded-xl text-slate-900"
+              >
+                {ICONS.Menu}
+              </button>
+            </div>
+
+            <header className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12 sm:mb-16">
+              <div className="group flex items-center gap-4">
+                <div>
+                  <h1 className="text-[28px] sm:text-[42px] font-black text-slate-950 leading-tight uppercase tracking-tighter flex items-center flex-wrap">
+                    {getBreadcrumbs()}
+                  </h1>
+                  <p className="text-[11px] sm:text-[14px] font-black text-purple-700 uppercase tracking-[0.3em] mt-1">
+                    EDUCATIONAL HUB • CURATED BY EXPERTS
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-6">
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                  {(selectedTrackId || selectedSubcategoryId) && (
+                    <button 
+                      onClick={() => { 
+                        if (selectedSubcategoryId) setSelectedSubcategoryId(null);
+                        else setSelectedTrackId(null);
+                      }}
+                      className="text-[9px] sm:text-[11px] font-black text-slate-500 hover:text-purple-700 uppercase tracking-widest flex items-center gap-2 transition-colors bg-white px-4 py-3 rounded-2xl border-2 border-slate-200 shadow-sm"
+                    >
+                      {ICONS.Back} BACK
+                    </button>
+                  )}
+                  <div className="relative flex-1 md:w-80">
+                    <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600 scale-75 sm:scale-100">
+                      {ICONS.Search}
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder="Search..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 sm:pl-14 pr-4 sm:pr-6 py-3 sm:py-4 bg-white border-2 border-slate-300 rounded-[1.5rem] sm:rounded-[2rem] text-[12px] sm:text-[14px] font-bold focus:outline-none focus:ring-4 focus:ring-purple-600/20 shadow-xl transition-all text-slate-950 placeholder:text-slate-500"
+                    />
+                  </div>
+                </div>
+                {isAuthenticated && (
+                  <button 
+                    onClick={() => handleCreateProject()}
+                    className="w-full md:w-auto flex items-center justify-center gap-3 bg-purple-700 text-white px-8 sm:px-10 py-4 sm:py-5 rounded-[1.5rem] sm:rounded-[2rem] text-[11px] sm:text-[13px] font-black uppercase tracking-widest hover:bg-slate-950 shadow-2xl transition-all active:scale-95"
+                  >
+                    {ICONS.Plus} ADD TUTORIAL
+                  </button>
                 )}
-                {hasSubcategories ? (
-                  <div className="space-y-12 sm:space-y-16">
-                    {subcategoriesToRender?.map(sub => {
-                      const subProjects = trackProjects.filter(p => p.subcategoryId === sub.id);
-                      return (
-                        <div key={sub.id} className="space-y-6 sm:space-y-8 pl-3 sm:pl-4 border-l-4 border-purple-100">
-                          <h4 className={`text-lg sm:text-xl font-black uppercase tracking-widest flex items-center gap-3 sm:gap-4 cursor-pointer hover:text-purple-900 transition-colors ${selectedSubcategoryId === sub.id ? 'text-purple-900' : 'text-purple-700'}`} onClick={() => setSelectedSubcategoryId(sub.id)}>
-                            <span className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${selectedSubcategoryId === sub.id ? 'bg-purple-900 scale-125' : 'bg-purple-600'}`} />
-                            {sub.title}
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 sm:gap-12">
-                            {subProjects.map(project => renderProjectCard(project))}
-                            {renderAddPlaceholder(track.id, sub.id)}
+              </div>
+            </header>
+            <div className="space-y-24 sm:space-y-32 pb-20">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-700 rounded-full animate-spin"></div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Syncing with Cloud...</p>
+                </div>
+              ) : (Array.isArray(visibleTracks) ? visibleTracks : []).map((track) => {
+                const trackProjects = filteredProjects.filter(p => p.trackId === track.id);
+                const subcategoriesToRender = selectedSubcategoryId ? track.subcategories?.filter(s => s.id === selectedSubcategoryId) : track.subcategories;
+                const hasSubcategories = subcategoriesToRender && subcategoriesToRender.length > 0;
+                return (
+                  <section key={track.id} className="space-y-10 sm:space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
+                    {!selectedTrackId && (
+                      <div className="flex items-center justify-between border-b-4 border-slate-200 pb-6 sm:pb-8 cursor-pointer group" onClick={() => setSelectedTrackId(track.id)}>
+                        <div className="flex items-center gap-4 sm:gap-6">
+                          <span className="text-3xl sm:text-5xl bg-white p-3 sm:p-5 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-xl border-2 border-slate-100 group-hover:scale-105 transition-transform">{track.icon}</span>
+                          <div>
+                            <h3 className="text-xl sm:text-3xl font-black text-slate-950 uppercase tracking-tight leading-none group-hover:text-purple-700 transition-colors">{track.title}</h3>
+                            <p className="text-[10px] sm:text-[13px] font-black text-slate-600 uppercase tracking-[0.2em] mt-2 sm:mt-3">{track.subtitle}</p>
                           </div>
-                        </div>
-                      );
-                    })}
-                    {!selectedSubcategoryId && trackProjects.filter(p => !p.subcategoryId).length > 0 && (
-                      <div className="space-y-6 sm:space-y-8 pl-3 sm:pl-4">
-                        <h4 className="text-lg sm:text-xl font-black text-slate-400 uppercase tracking-widest">Other Tutorials</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 sm:gap-12">
-                          {trackProjects.filter(p => !p.subcategoryId).map(project => renderProjectCard(project))}
-                          {renderAddPlaceholder(track.id)}
                         </div>
                       </div>
                     )}
-                  </div>
-                ) : (
-                  (!selectedSubcategoryId) && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 sm:gap-12">
-                      {trackProjects.map((project) => renderProjectCard(project))}
-                      {renderAddPlaceholder(track.id)}
-                    </div>
-                  )
-                )}
-              </section>
-            );
-          })}
-        </div>
-      </main>
+                    {hasSubcategories ? (
+                      <div className="space-y-12 sm:space-y-16">
+                        {subcategoriesToRender?.map(sub => {
+                          const subProjects = trackProjects.filter(p => p.subcategoryId === sub.id);
+                          return (
+                            <div key={sub.id} className="space-y-6 sm:space-y-8 pl-3 sm:pl-4 border-l-4 border-purple-100">
+                              <h4 className={`text-lg sm:text-xl font-black uppercase tracking-widest flex items-center gap-3 sm:gap-4 cursor-pointer hover:text-purple-900 transition-colors ${selectedSubcategoryId === sub.id ? 'text-purple-900' : 'text-purple-700'}`} onClick={() => setSelectedSubcategoryId(sub.id)}>
+                                <span className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${selectedSubcategoryId === sub.id ? 'bg-purple-900 scale-125' : 'bg-purple-600'}`} />
+                                {sub.title}
+                              </h4>
+                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 sm:gap-12">
+                                {subProjects.map(project => renderProjectCard(project))}
+                                {renderAddPlaceholder(track.id, sub.id)}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {!selectedSubcategoryId && trackProjects.filter(p => !p.subcategoryId).length > 0 && (
+                          <div className="space-y-6 sm:space-y-8 pl-3 sm:pl-4">
+                            <h4 className="text-lg sm:text-xl font-black text-slate-400 uppercase tracking-widest">Other Tutorials</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 sm:gap-12">
+                              {trackProjects.filter(p => !p.subcategoryId).map(project => renderProjectCard(project))}
+                              {renderAddPlaceholder(track.id)}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      (!selectedSubcategoryId) && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 sm:gap-12">
+                          {trackProjects.map((project) => renderProjectCard(project))}
+                          {renderAddPlaceholder(track.id)}
+                        </div>
+                      )
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          </main>
+        </>
+      )}
     </div>
   );
 };

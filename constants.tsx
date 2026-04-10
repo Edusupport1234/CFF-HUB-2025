@@ -23,7 +23,8 @@ import {
   Maximize2,
   Heading1,
   Palette,
-  Layers
+  Layers,
+  Menu
 } from 'lucide-react';
 import { LearningTrack } from './types';
 
@@ -51,7 +52,8 @@ export const ICONS = {
   Resize: <Maximize2 size={14} />,
   Heading: <Heading1 size={18} />,
   Theme: <Palette size={16} />,
-  Layout: <Layers size={16} />
+  Layout: <Layers size={16} />,
+  Menu: <Menu size={20} />
 };
 
 export const DEFAULT_TRACKS: LearningTrack[] = [

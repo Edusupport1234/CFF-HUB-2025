@@ -8,6 +8,8 @@ interface SidebarProps {
   onViewChange: (view: any) => void;
   tracks: LearningTrack[];
   onTracksReorder: (tracks: LearningTrack[]) => void;
+  onDeleteTrack: (id: string) => void;
+  onDeleteSub: (trackId: string, subId: string) => void;
   selectedTrackId: string | null;
   onTrackSelect: (id: string | null) => void;
   selectedSubcategoryId: string | null;
@@ -15,6 +17,9 @@ interface SidebarProps {
   isAdmin: boolean;
   onAdminLogin: () => void;
   onAdminLogout: () => void;
+  isOpen: boolean;
+  onToggle: () => void;
+  onClose: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -22,13 +27,18 @@ const Sidebar: React.FC<SidebarProps> = ({
   onViewChange, 
   tracks, 
   onTracksReorder, 
+  onDeleteTrack,
+  onDeleteSub,
   selectedTrackId, 
   onTrackSelect,
   selectedSubcategoryId,
   onSubcategorySelect,
   isAdmin,
   onAdminLogin,
-  onAdminLogout
+  onAdminLogout,
+  isOpen,
+  onToggle,
+  onClose
 }) => {
   const [draggedTrackIndex, setDraggedTrackIndex] = useState<number | null>(null);
   const [draggedSubIndex, setDraggedSubIndex] = useState<{ trackIdx: number, subIdx: number } | null>(null);
@@ -117,26 +127,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   const handleDeleteTrack = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (!isAdmin) return;
-    if (confirm("Delete this track and all its contents?")) {
-      onTracksReorder(tracks.filter(t => t.id !== id));
-      if (selectedTrackId === id) {
-        onTrackSelect(null);
-        onSubcategorySelect(null);
-      }
-    }
+    onDeleteTrack(id);
   };
 
   const handleDeleteSub = (e: React.MouseEvent, trackId: string, subId: string) => {
     e.stopPropagation();
     if (!isAdmin) return;
-    const newTracks = tracks.map(t => {
-      if (t.id === trackId) {
-        return { ...t, subcategories: t.subcategories?.filter(s => s.id !== subId) };
-      }
-      return t;
-    });
-    onTracksReorder(newTracks);
-    if (selectedSubcategoryId === subId) onSubcategorySelect(null);
+    onDeleteSub(trackId, subId);
   };
 
   // Drag & Drop logic
@@ -180,49 +177,74 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
-    <div className="w-80 h-screen bg-white border-r border-slate-200 flex flex-col py-8 px-4 relative shadow-sm shrink-0">
-      <div className="flex items-center gap-3 px-2 mb-10 overflow-hidden whitespace-nowrap">
-        <div className="w-10 h-10 shrink-0 bg-purple-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-200">
-          <div className="w-5 h-5 border-2 border-white rounded-lg flex items-center justify-center">
-            <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-          </div>
-        </div>
-        <div>
-          <h2 className="text-sm font-black text-slate-900 leading-none tracking-tight">LEARNING</h2>
-          <p className="text-[11px] font-bold text-purple-700 tracking-widest mt-0.5">GALLERY</p>
-        </div>
-      </div>
+    <>
+      {/* Mobile Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-[60] md:hidden transition-opacity"
+          onClick={onClose}
+        />
+      )}
 
-      <div className="space-y-1">
-        <button
-          onClick={() => {
-            onViewChange('home');
-            onTrackSelect(null);
-            onSubcategorySelect(null);
-          }}
-          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all overflow-hidden whitespace-nowrap ${
-            currentView === 'home' && selectedTrackId === null
-            ? 'bg-purple-700 text-white shadow-lg shadow-purple-200' 
-            : 'text-slate-700 hover:bg-slate-100'
-          }`}
+      <div className={`fixed md:relative z-[70] h-screen bg-white border-r border-slate-200 flex flex-col py-8 px-4 shadow-sm shrink-0 transition-all duration-300 ease-in-out ${isOpen ? 'translate-x-0 w-80' : '-translate-x-full md:translate-x-0 md:w-20'}`}>
+        {/* Desktop Toggle Button */}
+        <button 
+          onClick={onToggle}
+          className="hidden md:flex absolute -right-4 top-10 w-8 h-8 bg-white border-2 border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-purple-700 hover:border-purple-200 transition-all shadow-sm z-[80]"
         >
-          {ICONS.Home}
-          <span>HOME PAGE</span>
+          <div className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+            {ICONS.ChevronRight}
+          </div>
         </button>
-      </div>
 
-      <div className="mt-10 flex-1 overflow-y-auto no-scrollbar">
-        <div className="px-4 flex items-center justify-between mb-6">
-          <h3 className="text-[11px] font-black text-slate-500 uppercase tracking-widest">LEARNING TRACKS</h3>
-          {isAdmin && (
-            <button 
-              onClick={() => setAddingTrack(true)}
-              className="p-1.5 hover:bg-slate-100 rounded-lg text-purple-700 transition-colors"
-            >
-              {ICONS.Plus}
-            </button>
-          )}
+        <div className="flex items-center justify-between px-2 mb-10 overflow-hidden whitespace-nowrap">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 shrink-0 bg-purple-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-200">
+              <div className="w-5 h-5 border-2 border-white rounded-lg flex items-center justify-center">
+                <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
+              </div>
+            </div>
+            <div className={`${!isOpen ? 'md:hidden' : ''}`}>
+              <h2 className="text-sm font-black text-slate-950 leading-none tracking-tight">CFF VIDEO</h2>
+              <p className="text-[11px] font-bold text-purple-700 tracking-widest mt-0.5">HUB</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="md:hidden p-2 text-slate-400 hover:text-slate-950">
+            {ICONS.Back}
+          </button>
         </div>
+
+        <div className="space-y-1">
+          <button
+            onClick={() => {
+              onViewChange('home');
+              onTrackSelect(null);
+              onSubcategorySelect(null);
+              if (window.innerWidth < 768) onClose();
+            }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all overflow-hidden whitespace-nowrap ${
+              currentView === 'home' && selectedTrackId === null
+              ? 'bg-purple-700 text-white shadow-lg shadow-purple-200' 
+              : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <span className="shrink-0">{ICONS.Home}</span>
+            <span className={`${!isOpen ? 'md:hidden' : ''}`}>HOME PAGE</span>
+          </button>
+        </div>
+
+        <div className="mt-10 flex-1 overflow-y-auto no-scrollbar">
+          <div className="px-4 flex items-center justify-between mb-6">
+            <h3 className={`text-[11px] font-black text-slate-500 uppercase tracking-widest ${!isOpen ? 'md:hidden' : ''}`}>LEARNING TRACKS</h3>
+            {isAdmin && isOpen && (
+              <button 
+                onClick={() => setAddingTrack(true)}
+                className="p-1.5 hover:bg-slate-100 rounded-lg text-purple-700 transition-colors"
+              >
+                {ICONS.Plus}
+              </button>
+            )}
+          </div>
 
         {addingTrack && (
           <div className="px-4 mb-4">
@@ -256,10 +278,10 @@ const Sidebar: React.FC<SidebarProps> = ({
                 } ${draggedTrackIndex === tIdx ? 'opacity-40 bg-purple-50 scale-95' : 'opacity-100'}`}
               >
                 <span className="text-xl shrink-0">{track.icon}</span>
-                <span className="flex-1 text-[12px] font-bold tracking-wide uppercase truncate">
+                <span className={`flex-1 text-[12px] font-bold tracking-wide uppercase truncate ${!isOpen ? 'md:hidden' : ''}`}>
                   {track.title}
                 </span>
-                {isAdmin && (
+                {isAdmin && isOpen && (
                   <button 
                     onClick={(e) => handleDeleteTrack(e, track.id)}
                     className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-all"
@@ -269,13 +291,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                 )}
                 <div 
                   onClick={(e) => toggleTrackExpansion(e, track.id)}
-                  className={`p-1 text-slate-400 hover:text-purple-600 transition-transform duration-300 ${expandedTrackIds.has(track.id) ? 'rotate-180' : ''}`}
+                  className={`p-1 text-slate-400 hover:text-purple-600 transition-transform duration-300 ${expandedTrackIds.has(track.id) ? 'rotate-180' : ''} ${!isOpen ? 'md:hidden' : ''}`}
                 >
                   {ICONS.ChevronDown}
                 </div>
               </div>
 
-              {expandedTrackIds.has(track.id) && (
+              {expandedTrackIds.has(track.id) && isOpen && (
                 <div className="ml-10 space-y-1 animate-in slide-in-from-top-2 duration-200">
                   {track.subcategories?.map((sub, sIdx) => (
                     <div
@@ -340,10 +362,14 @@ const Sidebar: React.FC<SidebarProps> = ({
         onClick={isAdmin ? onAdminLogout : onAdminLogin}
         className="mt-auto mx-2 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-slate-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-purple-800 transition-all shadow-md"
       >
-        {isAdmin ? <>{ICONS.Back} LOGOUT</> : <>{ICONS.Admin} ADMIN LOGIN</>}
+        <span className="shrink-0">{isAdmin ? ICONS.Back : ICONS.Admin}</span>
+        <span className={`${!isOpen ? 'md:hidden' : ''}`}>
+          {isAdmin ? 'LOGOUT' : 'ADMIN LOGIN'}
+        </span>
       </button>
     </div>
-  );
+  </>
+);
 };
 
 export default Sidebar;

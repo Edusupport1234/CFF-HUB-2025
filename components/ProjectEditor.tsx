@@ -99,41 +99,41 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
       />
 
       {/* Header */}
-      <header className="h-20 bg-white border-b-2 border-slate-200 px-10 flex items-center justify-between z-30 shrink-0">
-        <div className="flex items-center gap-6">
-          <button onClick={onBack} className="p-3 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all text-slate-900 border border-slate-200">
+      <header className="h-16 sm:h-20 bg-white border-b-2 border-slate-200 px-4 sm:px-10 flex items-center justify-between z-30 shrink-0">
+        <div className="flex items-center gap-3 sm:gap-6">
+          <button onClick={onBack} className="p-2 sm:p-3 bg-slate-100 hover:bg-slate-200 rounded-xl sm:rounded-2xl transition-all text-slate-900 border border-slate-200">
             {ICONS.Back}
           </button>
-          <h2 className="text-xl font-black uppercase tracking-tight text-slate-950">
-            {project.id ? 'Edit Tutorial' : 'Create New Tutorial'}
+          <h2 className="text-sm sm:text-xl font-black uppercase tracking-tight text-slate-950 truncate max-w-[120px] sm:max-w-none">
+            {project.id ? 'Edit Tutorial' : 'New Tutorial'}
           </h2>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <button 
             onClick={onBack} 
-            className="px-8 py-3.5 rounded-full text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-all"
+            className="px-4 sm:px-8 py-2 sm:py-3.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-all"
           >
             Cancel
           </button>
           <button 
             onClick={handleSave} 
-            className="bg-purple-700 text-white px-10 py-3.5 rounded-full text-xs font-black uppercase tracking-widest hover:bg-slate-950 transition-all shadow-xl"
+            className="bg-purple-700 text-white px-4 sm:px-10 py-2 sm:py-3.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest hover:bg-slate-950 transition-all shadow-xl"
           >
-            Save & Publish
+            Save
           </button>
         </div>
       </header>
 
       {/* Form Area */}
-      <main className="flex-1 overflow-y-auto p-12 no-scrollbar">
-        <div className="max-w-4xl mx-auto space-y-12 animate-slide-up pb-20">
+      <main className="flex-1 overflow-y-auto p-6 sm:p-12 no-scrollbar">
+        <div className="max-w-4xl mx-auto space-y-8 sm:y-12 animate-slide-up pb-20">
           
           {/* Section: Basic Info */}
-          <div className="bg-white rounded-[3rem] p-10 border-2 border-slate-200 shadow-sm space-y-8">
-            <h3 className="text-[14px] font-black text-purple-700 uppercase tracking-[0.3em]">Basic Information</h3>
+          <div className="bg-white rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-10 border-2 border-slate-200 shadow-sm space-y-6 sm:space-y-8">
+            <h3 className="text-[12px] sm:text-[14px] font-black text-purple-700 uppercase tracking-[0.3em]">Basic Information</h3>
             
             <div className="space-y-2">
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Tutorial Title</label>
+              <label className="text-[10px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">Tutorial Title</label>
               <input 
                 value={title} 
                 onChange={e => {
@@ -141,12 +141,12 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
                   if (errors.title) setErrors(prev => { const n = {...prev}; delete n.title; return n; });
                 }}
                 placeholder="Enter a descriptive title..."
-                className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl text-[16px] font-bold text-slate-950 focus:outline-none transition-all ${errors.title ? 'border-red-500' : 'border-slate-100 focus:border-purple-600'}`}
+                className={`w-full px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-2 rounded-xl sm:rounded-2xl text-[14px] sm:text-[16px] font-bold text-slate-950 focus:outline-none transition-all ${errors.title ? 'border-red-500' : 'border-slate-100 focus:border-purple-600'}`}
               />
               {errors.title && <p className="text-[10px] font-black text-red-500 uppercase tracking-widest ml-4">{errors.title}</p>}
             </div>
 
-            <div className="grid grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
               <div className="space-y-2">
                 <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Target Track</label>
                 <select 
@@ -180,11 +180,11 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
           </div>
 
           {/* Section: Media & Link */}
-          <div className="bg-white rounded-[3rem] p-10 border-2 border-slate-200 shadow-sm space-y-8">
-            <h3 className="text-[14px] font-black text-purple-700 uppercase tracking-[0.3em]">Tutorial Content</h3>
+          <div className="bg-white rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-10 border-2 border-slate-200 shadow-sm space-y-6 sm:space-y-8">
+            <h3 className="text-[12px] sm:text-[14px] font-black text-purple-700 uppercase tracking-[0.3em]">Tutorial Content</h3>
             
             <div className="space-y-2">
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Video URL (YouTube/Vimeo)</label>
+              <label className="text-[10px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">Video URL (YouTube/Vimeo)</label>
               <input 
                 value={videoLink} 
                 onChange={e => {
@@ -192,18 +192,18 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
                   if (errors.videoLink) setErrors(prev => { const n = {...prev}; delete n.videoLink; return n; });
                 }}
                 placeholder="Paste video link here..."
-                className={`w-full px-6 py-4 bg-slate-50 border-2 rounded-2xl text-[16px] font-bold text-slate-950 focus:outline-none transition-all ${errors.videoLink ? 'border-red-500' : 'border-slate-100 focus:border-purple-600'}`}
+                className={`w-full px-4 sm:px-6 py-3 sm:py-4 bg-slate-50 border-2 rounded-xl sm:rounded-2xl text-[14px] sm:text-[16px] font-bold text-slate-950 focus:outline-none transition-all ${errors.videoLink ? 'border-red-500' : 'border-slate-100 focus:border-purple-600'}`}
               />
               {errors.videoLink && <p className="text-[10px] font-black text-red-500 uppercase tracking-widest ml-4">{errors.videoLink}</p>}
               {videoLink && (
-                <div className="mt-4 rounded-[2rem] overflow-hidden border-2 border-slate-100 shadow-inner">
+                <div className="mt-4 rounded-[1.5rem] sm:rounded-[2rem] overflow-hidden border-2 border-slate-100 shadow-inner">
                   <VideoPlayer url={videoLink} className="rounded-none shadow-none border-0" />
                 </div>
               )}
             </div>
 
             <div className="space-y-2">
-              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Description & Steps</label>
+              <label className="text-[10px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">Description & Steps</label>
               <textarea 
                 value={description} 
                 onChange={e => {
@@ -212,25 +212,25 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
                 }}
                 placeholder="Explain the tutorial steps and concepts here..."
                 rows={8}
-                className={`w-full px-6 py-5 bg-slate-50 border-2 rounded-2xl text-[16px] font-bold leading-relaxed text-slate-900 focus:outline-none transition-all resize-none ${errors.description ? 'border-red-500' : 'border-slate-100 focus:border-purple-600'}`}
+                className={`w-full px-4 sm:px-6 py-4 sm:py-5 bg-slate-50 border-2 rounded-xl sm:rounded-2xl text-[14px] sm:text-[16px] font-bold leading-relaxed text-slate-900 focus:outline-none transition-all resize-none ${errors.description ? 'border-red-500' : 'border-slate-100 focus:border-purple-600'}`}
               />
               {errors.description && <p className="text-[10px] font-black text-red-500 uppercase tracking-widest ml-4">{errors.description}</p>}
             </div>
           </div>
 
           {/* Section: Thumbnail */}
-          <div className="bg-white rounded-[3rem] p-10 border-2 border-slate-200 shadow-sm space-y-8">
+          <div className="bg-white rounded-[2rem] sm:rounded-[3rem] p-6 sm:p-10 border-2 border-slate-200 shadow-sm space-y-6 sm:space-y-8">
             <div className="flex items-center justify-between">
-              <h3 className="text-[14px] font-black text-purple-700 uppercase tracking-[0.3em]">Thumbnail Image</h3>
+              <h3 className="text-[12px] sm:text-[14px] font-black text-purple-700 uppercase tracking-[0.3em]">Thumbnail Image</h3>
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="px-6 py-3 bg-purple-50 text-purple-700 rounded-full text-[11px] font-black uppercase tracking-widest hover:bg-purple-100 transition-all"
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-50 text-purple-700 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-widest hover:bg-purple-100 transition-all"
               >
-                Choose Image
+                Choose
               </button>
             </div>
             
-            <div className={`relative group aspect-video rounded-[2.5rem] overflow-hidden bg-slate-100 border-4 border-dashed flex flex-col items-center justify-center transition-all ${errors.thumbnail ? 'border-red-500 bg-red-50' : 'border-slate-200 hover:border-purple-600'}`}>
+            <div className={`relative group aspect-video rounded-[1.5rem] sm:rounded-[2.5rem] overflow-hidden bg-slate-100 border-4 border-dashed flex flex-col items-center justify-center transition-all ${errors.thumbnail ? 'border-red-500 bg-red-50' : 'border-slate-200 hover:border-purple-600'}`}>
               {thumbnail ? (
                 <>
                   <img src={thumbnail} className="w-full h-full object-cover" alt="Tutorial Preview" />
