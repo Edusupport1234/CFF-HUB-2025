@@ -5,8 +5,9 @@ import ProjectEditor from './components/ProjectEditor';
 import ProjectViewer from './components/ProjectViewer';
 import { ICONS, DEFAULT_TRACKS } from './constants';
 import { ViewState, Project, LearningTrack, ProjectStatus } from './types';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { ref, onValue, set } from 'firebase/database';
+import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from 'firebase/auth';
 
 const DEMO_PROJECTS: Project[] = [
   {
@@ -49,7 +50,8 @@ const DEMO_PROJECTS: Project[] = [
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [isViewerAuthenticated, setIsViewerAuthenticated] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState<'admin' | 'viewer' | null>(null);
   const [loginUsername, setLoginUsername] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -116,6 +118,20 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // Sync Auth State
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // We consider ANY Firebase auth user as a Viewer unless they are specifically the EP Admin
+        // However, the EP Admin is currently local-only for login, but let's keep things separated.
+        setIsViewerAuthenticated(true);
+      } else {
+        setIsViewerAuthenticated(false);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const handleTracksReorder = (newTracks: LearningTrack[]) => {
     setTracks(newTracks);
     // Remove undefined values before saving to Firebase
@@ -123,21 +139,35 @@ const App: React.FC = () => {
     set(ref(db, 'tracks'), cleanedTracks);
   };
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginUsername === 'EPEDUSUPPORT' && loginPassword === '12345678') {
-      setIsAuthenticated(true);
-      setLoginError('');
-      setShowLoginModal(false);
-      setLoginUsername('');
-      setLoginPassword('');
-    } else {
-      setLoginError('Invalid credentials. Please try again.');
+    if (showLoginModal === 'admin') {
+      if (loginUsername === 'EPEDUSUPPORT' && loginPassword === '12345678') {
+        setIsAuthenticated(true);
+        setLoginError('');
+        setShowLoginModal(null);
+        setLoginUsername('');
+        setLoginPassword('');
+      } else {
+        setLoginError('Invalid credentials. Please try again.');
+      }
+    } else if (showLoginModal === 'viewer') {
+      try {
+        await signInWithEmailAndPassword(auth, loginUsername, loginPassword);
+        setLoginError('');
+        setShowLoginModal(null);
+        setLoginUsername('');
+        setLoginPassword('');
+      } catch (error: any) {
+        setLoginError(error.message || 'Login failed. Please check your credentials.');
+      }
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setIsAuthenticated(false);
+    await signOut(auth);
+    setIsViewerAuthenticated(false);
     setCurrentView('home');
   };
 
@@ -441,7 +471,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="w-full max-w-md bg-white rounded-[3rem] p-12 shadow-2xl animate-slide-up relative">
             <button 
-              onClick={() => setShowLoginModal(false)}
+              onClick={() => setShowLoginModal(null)}
               className="absolute top-8 right-8 text-slate-400 hover:text-slate-950 transition-colors"
             >
               {ICONS.Back}
@@ -452,19 +482,26 @@ const App: React.FC = () => {
                   <div className="w-2 h-2 bg-white rounded-full"></div>
                 </div>
               </div>
-              <h1 className="text-3xl font-black text-slate-950 uppercase tracking-tighter text-center">EP Admin</h1>
-              <p className="text-[11px] font-black text-purple-700 uppercase tracking-[0.3em] mt-2">Tutorial Management Hub</p>
+              <h1 className="text-3xl font-black text-slate-950 uppercase tracking-tighter text-center">
+                {showLoginModal === 'admin' ? 'EP Admin' : 'Viewer Access'}
+              </h1>
+              <p className="text-[11px] font-black text-purple-700 uppercase tracking-[0.3em] mt-2">
+                {showLoginModal === 'admin' ? 'Tutorial Management Hub' : 'Educational Content Hub'}
+              </p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">Username</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">
+                  {showLoginModal === 'admin' ? 'Username' : 'Email Address'}
+                </label>
                 <input 
-                  type="text" 
+                  type={showLoginModal === 'admin' ? "text" : "email"}
                   value={loginUsername}
                   onChange={(e) => setLoginUsername(e.target.value)}
                   className="w-full px-8 py-4 bg-slate-100 border-2 border-transparent focus:border-purple-600 focus:bg-white rounded-2xl text-sm font-bold focus:outline-none transition-all"
-                  placeholder="EPEDUSUPPORT"
+                  placeholder={showLoginModal === 'admin' ? "EPEDUSUPPORT" : "you@example.com"}
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -475,6 +512,7 @@ const App: React.FC = () => {
                   onChange={(e) => setLoginPassword(e.target.value)}
                   className="w-full px-8 py-4 bg-slate-100 border-2 border-transparent focus:border-purple-600 focus:bg-white rounded-2xl text-sm font-bold focus:outline-none transition-all"
                   placeholder="••••••••"
+                  required
                 />
               </div>
 
@@ -488,6 +526,11 @@ const App: React.FC = () => {
               >
                 Authorize Access
               </button>
+              {showLoginModal === 'viewer' && (
+                <p className="text-[9px] text-slate-400 text-center font-bold uppercase tracking-wider">
+                  Password: EPedu123@
+                </p>
+              )}
             </form>
           </div>
         </div>
@@ -527,8 +570,11 @@ const App: React.FC = () => {
             selectedSubcategoryId={selectedSubcategoryId}
             onSubcategorySelect={setSelectedSubcategoryId}
             isAdmin={isAuthenticated}
-            onAdminLogin={() => setShowLoginModal(true)}
+            onAdminLogin={() => setShowLoginModal('admin')}
             onAdminLogout={handleLogout}
+            isViewer={isViewerAuthenticated}
+            onViewerLogin={() => setShowLoginModal('viewer')}
+            onViewerLogout={handleLogout}
             isOpen={isSidebarOpen}
             onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
             onClose={() => setIsSidebarOpen(false)}
@@ -604,6 +650,22 @@ const App: React.FC = () => {
                 <div className="flex flex-col items-center justify-center py-20 gap-4">
                   <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-700 rounded-full animate-spin"></div>
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Syncing with Cloud...</p>
+                </div>
+              ) : !isAuthenticated && !isViewerAuthenticated ? (
+                <div className="flex flex-col items-center justify-center py-32 sm:py-48 text-center animate-in fade-in zoom-in duration-700">
+                  <div className="w-20 h-20 sm:w-28 sm:h-28 bg-white border-2 border-slate-200 rounded-[2.5rem] flex items-center justify-center text-slate-300 mb-8 sm:mb-12 shadow-xl">
+                    <div className="scale-150 sm:scale-[2]">{ICONS.Lock}</div>
+                  </div>
+                  <h2 className="text-2xl sm:text-4xl font-black text-slate-950 uppercase tracking-tighter mb-4 sm:mb-6">Restricted Access</h2>
+                  <p className="text-[11px] sm:text-[13px] font-black text-slate-500 uppercase tracking-[0.3em] max-w-sm mb-12 sm:mb-16 leading-loose">
+                    Please log in via the sidebar to view tutorials and educational content.
+                  </p>
+                  <button 
+                    onClick={() => setShowLoginModal('viewer')}
+                    className="bg-purple-700 text-white px-10 sm:px-14 py-4 sm:py-6 rounded-[1.5rem] sm:rounded-[2rem] text-[11px] sm:text-[13px] font-black uppercase tracking-widest hover:bg-slate-950 shadow-2xl transition-all active:scale-95"
+                  >
+                    Viewer Login
+                  </button>
                 </div>
               ) : (Array.isArray(visibleTracks) ? visibleTracks : []).map((track) => {
                 const trackProjects = filteredProjects.filter(p => p.trackId === track.id);

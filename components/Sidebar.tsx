@@ -17,6 +17,9 @@ interface SidebarProps {
   isAdmin: boolean;
   onAdminLogin: () => void;
   onAdminLogout: () => void;
+  isViewer: boolean;
+  onViewerLogin: () => void;
+  onViewerLogout: () => void;
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
@@ -36,6 +39,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   isAdmin,
   onAdminLogin,
   onAdminLogout,
+  isViewer,
+  onViewerLogin,
+  onViewerLogout,
   isOpen,
   onToggle,
   onClose
@@ -358,15 +364,35 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      <button 
-        onClick={isAdmin ? onAdminLogout : onAdminLogin}
-        className="mt-auto mx-2 flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-slate-900 text-white text-[11px] font-bold uppercase tracking-widest hover:bg-purple-800 transition-all shadow-md"
-      >
-        <span className="shrink-0">{isAdmin ? ICONS.Back : ICONS.Admin}</span>
-        <span className={`${!isOpen ? 'md:hidden' : ''}`}>
-          {isAdmin ? 'LOGOUT' : 'ADMIN LOGIN'}
-        </span>
-      </button>
+      <div className="mt-auto space-y-2">
+        <button 
+          onClick={isViewer ? onViewerLogout : onViewerLogin}
+          className={`w-full mx-0 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all shadow-sm ${
+            isViewer 
+            ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' 
+            : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-purple-200 hover:text-purple-700'
+          }`}
+        >
+          <span className="shrink-0">{isViewer ? ICONS.Back : ICONS.Play}</span>
+          <span className={`${!isOpen ? 'md:hidden' : ''}`}>
+            {isViewer ? 'VIEWER LOGOUT' : 'VIEWER LOGIN'}
+          </span>
+        </button>
+
+        <button 
+          onClick={isAdmin ? onAdminLogout : onAdminLogin}
+          className={`w-full mx-0 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all shadow-md ${
+            isAdmin 
+            ? 'bg-slate-800 text-white hover:bg-slate-900' 
+            : 'bg-slate-900 text-white hover:bg-purple-800'
+          }`}
+        >
+          <span className="shrink-0">{isAdmin ? ICONS.Back : ICONS.Admin}</span>
+          <span className={`${!isOpen ? 'md:hidden' : ''}`}>
+            {isAdmin ? 'EP LOGOUT' : 'EP ADMIN LOGIN'}
+          </span>
+        </button>
+      </div>
     </div>
   </>
 );

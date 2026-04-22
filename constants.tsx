@@ -32,6 +32,7 @@ export const ICONS = {
   Home: <Home size={18} />,
   Search: <Search size={18} />,
   Admin: <Lock size={14} />,
+  Lock: <Lock size={24} />,
   Grid: <LayoutGrid size={18} />,
   More: <MoreVertical size={18} />,
   Back: <ArrowLeft size={18} />,
