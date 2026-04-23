@@ -86,6 +86,8 @@ const App: React.FC = () => {
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const mainContentRef = React.useRef<HTMLElement>(null);
   
   // Custom Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState<{
@@ -179,8 +181,17 @@ const App: React.FC = () => {
         setProjects(projectsList);
 
         // Migration: Ensure demo-trainer-1 exists and updated to new track if needed
+        // Also migrate legacy time strings to realistic timestamps
         let pHasChanges = false;
-        let updatedProjectList = [...projectsList];
+        const ONE_MONTH_AGO = Date.now() - (30 * 24 * 60 * 60 * 1000);
+        
+        let updatedProjectList = projectsList.map(p => {
+          if (typeof p.lastEdited === 'string' && ['Just now', 'New', '2 hours ago'].includes(p.lastEdited)) {
+            pHasChanges = true;
+            return { ...p, lastEdited: ONE_MONTH_AGO };
+          }
+          return p;
+        });
 
         const trainerDemo = updatedProjectList.find(p => p.id === 'demo-trainer-1');
         if (!trainerDemo) {
@@ -238,6 +249,49 @@ const App: React.FC = () => {
     set(ref(db, 'tracks'), cleanedTracks);
   };
 
+  const scrollToTop = () => {
+    mainContentRef.current?.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
+  const handleMainScroll = (e: React.UIEvent<HTMLElement>) => {
+    setShowScrollTop(e.currentTarget.scrollTop > 100);
+  };
+
+  const getRelativeTime = (timestamp: string | number) => {
+    let numericTime: number;
+
+    if (typeof timestamp === 'string') {
+      const parsed = Date.parse(timestamp);
+      if (!isNaN(parsed)) {
+        numericTime = parsed;
+      } else {
+        return timestamp; // Return as-is if it's not a parsable date (e.g. "Legacy")
+      }
+    } else {
+      numericTime = timestamp;
+    }
+
+    const now = Date.now();
+    const diffInSeconds = Math.floor((now - numericTime) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    
+    return new Date(timestamp).toLocaleDateString();
+  };
+
   const handleLogout = async () => {
     setIsAuthenticated(false);
     await signOut(auth);
@@ -279,7 +333,7 @@ const App: React.FC = () => {
       title: 'New Tutorial Title',
       thumbnail: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?q=80&w=1000&auto=format&fit=crop',
       status: ProjectStatus.DRAFT,
-      lastEdited: 'Just now',
+      lastEdited: Date.now(),
       trackId: trackId || selectedTrackId || tracks[0]?.id || '',
       subcategoryId: subcategoryId || selectedSubcategoryId || null,
       sections: [],
@@ -290,9 +344,10 @@ const App: React.FC = () => {
   };
 
   const handleSaveProject = (updated: Project) => {
-    const newProjects = projects.find(p => p.id === updated.id)
-      ? projects.map(p => (p.id === updated.id ? updated : p))
-      : [updated, ...projects];
+    const projectWithTime = { ...updated, lastEdited: Date.now() };
+    const newProjects = projects.find(p => p.id === projectWithTime.id)
+      ? projects.map(p => (p.id === projectWithTime.id ? projectWithTime : p))
+      : [projectWithTime, ...projects];
     
     setProjects(newProjects);
     // Remove undefined values before saving to Firebase
@@ -510,7 +565,7 @@ const App: React.FC = () => {
               {project.title}
             </h4>
             <div className="flex items-center justify-between mt-4 sm:mt-6 pt-4 sm:pt-6 border-t-2 border-slate-100">
-               <span className="text-[9px] sm:text-[10px] font-black text-slate-600 uppercase tracking-widest">{project.lastEdited}</span>
+               <span className="text-[9px] sm:text-[10px] font-black text-slate-600 uppercase tracking-widest">{getRelativeTime(project.lastEdited)}</span>
                <div className="text-[9px] sm:text-[10px] font-black text-purple-700 uppercase flex items-center gap-2 group-hover:translate-x-1 transition-transform">
                  LEARN {ICONS.External}
                </div>
@@ -608,7 +663,23 @@ const App: React.FC = () => {
               searchQuery={searchQuery}
               onSearchChange={setSearchQuery}
             />
-            <main className="flex-1 flex flex-col relative overflow-y-auto px-4 sm:px-12 py-6 sm:py-12 scroll-smooth">
+            <main 
+              ref={mainContentRef} 
+              onScroll={handleMainScroll}
+              className="flex-1 flex flex-col relative overflow-y-auto px-4 sm:px-12 py-6 sm:py-12 scroll-smooth"
+            >
+              {/* Back to Top Arrow */}
+              {showScrollTop && (
+                <button 
+                  onClick={scrollToTop}
+                  className="fixed bottom-10 right-6 sm:right-10 z-[100] w-12 h-12 bg-white/80 backdrop-blur-md text-purple-700 rounded-full flex items-center justify-center shadow-xl border-2 border-slate-100 hover:bg-purple-700 hover:text-white transition-all scale-100 hover:scale-110 active:scale-95 animate-in fade-in slide-in-from-bottom-5 duration-300 group"
+                  aria-label="Back to Top"
+                >
+                  <div className="group-hover:-translate-y-1 transition-transform">
+                    {ICONS.Up}
+                  </div>
+                </button>
+              )}
               {/* Mobile Header */}
               <div className="md:hidden flex items-center justify-between mb-8 bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
                 <div className="flex items-center gap-3">

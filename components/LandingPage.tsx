@@ -18,6 +18,18 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAdminLoginSuccess, onTraine
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  const handleScroll = () => {
+    if (scrollRef.current) {
+      setShowScrollTop(scrollRef.current.scrollTop > 300);
+    }
+  };
+
+  const scrollToTop = () => {
+    scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +109,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAdminLoginSuccess, onTraine
   );
 
   return (
-    <div className="h-screen bg-slate-50 flex flex-col items-center justify-center p-6 sm:p-12 relative overflow-y-auto overflow-x-hidden">
+    <div 
+      ref={scrollRef}
+      onScroll={handleScroll}
+      className="h-screen bg-slate-50 flex flex-col items-center justify-center p-6 sm:p-12 relative overflow-y-auto overflow-x-hidden scroll-smooth"
+    >
+      {/* Back to Top Arrow */}
+      {showScrollTop && (
+        <button 
+          onClick={scrollToTop}
+          className="fixed bottom-24 right-6 sm:bottom-10 sm:right-10 z-[100] w-12 h-12 bg-white/80 backdrop-blur-md text-purple-700 rounded-full flex items-center justify-center shadow-xl border-2 border-slate-100 hover:bg-purple-700 hover:text-white transition-all scale-100 hover:scale-110 active:scale-95 animate-in fade-in slide-in-from-bottom-5 duration-300 group"
+          aria-label="Back to Top"
+        >
+          <div className="group-hover:-translate-y-1 transition-transform">
+            {ICONS.Up}
+          </div>
+        </button>
+      )}
       {/* Decorative Background Elements */}
       <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-100 rounded-full blur-[120px] opacity-50" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100 rounded-full blur-[120px] opacity-50" />
@@ -191,14 +219,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ onAdminLoginSuccess, onTraine
                 {showLoginModal === 'admin' ? 'Admin Gateway' : 'Trainer Access'}
               </h2>
               <p className="text-[11px] font-black text-purple-700 uppercase tracking-[0.3em] mt-2">
-                Secure Firebase Login
+                Secure Login
               </p>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-6">
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-4">
-                  Registered Email
+                  Username
                 </label>
                 <input 
                   type={showLoginModal === 'admin' ? "email" : "text"}

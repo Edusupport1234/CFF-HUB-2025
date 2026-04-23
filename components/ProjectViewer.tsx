@@ -15,6 +15,8 @@ interface ProjectViewerProps {
 
 const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, onEdit, onDelete, isAdmin }) => {
   const [showHeroVideo, setShowHeroVideo] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
 
   const getYoutubeUrl = (videoUrl: string) => {
     const regExp = /^.*((youtu.be\/)|(v\/)|(\/u\/\w\/)|(embed\/)|(watch\?))\??v?=?([^#&?]*).*/;
@@ -57,8 +59,63 @@ const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, o
     }
   };
 
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    setShowScrollTop(e.currentTarget.scrollTop > 500);
+  };
+
+  const scrollToTop = () => {
+    scrollContainerRef.current?.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
+  };
+
+  const getRelativeTime = (timestamp: string | number) => {
+    let numericTime: number;
+
+    if (typeof timestamp === 'string') {
+      const parsed = Date.parse(timestamp);
+      if (!isNaN(parsed)) {
+        numericTime = parsed;
+      } else {
+        return timestamp;
+      }
+    } else {
+      numericTime = timestamp;
+    }
+
+    const now = Date.now();
+    const diffInSeconds = Math.floor((now - numericTime) / 1000);
+
+    if (diffInSeconds < 60) return 'Just now';
+    const diffInMinutes = Math.floor(diffInSeconds / 60);
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}h ago`;
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays === 1) return 'Yesterday';
+    if (diffInDays < 7) return `${diffInDays}d ago`;
+    return new Date(timestamp).toLocaleDateString();
+  };
+
   return (
-    <div className="flex flex-col h-screen bg-white overflow-y-auto">
+    <div 
+      ref={scrollContainerRef} 
+      onScroll={handleScroll}
+      className="flex flex-col h-screen bg-white overflow-y-auto scroll-smooth"
+    >
+      {/* Back to Top Arrow */}
+      {showScrollTop && (
+        <button 
+          onClick={scrollToTop}
+          className="fixed bottom-10 right-6 sm:right-10 z-[100] w-12 h-12 bg-white/80 backdrop-blur-md text-purple-700 rounded-full flex items-center justify-center shadow-xl border-2 border-slate-100 hover:bg-purple-700 hover:text-white transition-all scale-100 hover:scale-110 active:scale-95 animate-in fade-in slide-in-from-bottom-5 duration-300 group"
+          aria-label="Back to Top"
+        >
+          <div className="group-hover:-translate-y-1 transition-transform">
+            {ICONS.Up}
+          </div>
+        </button>
+      )}
       {/* Viewer Navigation */}
       <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b-2 border-slate-200 px-4 sm:px-8 py-4 sm:py-5 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3 sm:gap-6">
@@ -72,7 +129,7 @@ const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, o
             <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-1.5">
               <span className="text-[9px] sm:text-[11px] font-black text-purple-700 uppercase tracking-widest truncate max-w-[80px] sm:max-w-none">{track?.title || 'Course Content'}</span>
               <span className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-slate-300 rounded-full"></span>
-              <span className="text-[9px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">{project.lastEdited}</span>
+              <span className="text-[9px] sm:text-[11px] font-black text-slate-500 uppercase tracking-widest">{getRelativeTime(project.lastEdited)}</span>
             </div>
           </div>
         </div>

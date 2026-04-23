@@ -32,7 +32,7 @@ export interface Project {
   subtitle?: string;
   thumbnail: string;
   status: ProjectStatus;
-  lastEdited: string;
+  lastEdited: string | number;
   trackId: string;
   subcategoryId?: string | null; // Optional link to subcategory
   sections: Section[];
