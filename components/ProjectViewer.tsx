@@ -58,12 +58,12 @@ const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, o
   };
 
   return (
-    <div className="flex flex-col h-screen bg-white overflow-y-auto no-scrollbar">
+    <div className="flex flex-col h-screen bg-white overflow-y-auto">
       {/* Viewer Navigation */}
       <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-xl border-b-2 border-slate-200 px-4 sm:px-8 py-4 sm:py-5 flex items-center justify-between shadow-sm">
         <div className="flex items-center gap-3 sm:gap-6">
-          <button onClick={onBack} className="p-2 sm:p-3 hover:bg-slate-100 rounded-xl sm:rounded-2xl transition-all text-slate-900 shadow-sm border border-slate-200">
-            {ICONS.Back}
+          <button onClick={onBack} className="p-2 sm:p-3 hover:text-purple-700 transition-colors text-slate-900 group">
+            <span className="group-hover:-translate-x-1 transition-transform inline-block">{ICONS.Back}</span>
           </button>
           <div className="max-w-[150px] sm:max-w-none">
             <h2 className="text-xs sm:text-base font-black text-slate-950 uppercase tracking-tight leading-none truncate">
@@ -80,7 +80,7 @@ const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, o
           {firstVideo?.content && (
              <button 
               onClick={() => window.open(getYoutubeUrl(firstVideo.content), '_blank')}
-              className="flex items-center gap-2 bg-white border-2 border-slate-300 text-slate-950 px-3 sm:px-8 py-2 sm:py-3.5 rounded-xl sm:rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all shadow-sm"
+              className="flex items-center gap-2 text-slate-950 px-2 sm:px-4 py-2 text-[10px] sm:text-[11px] font-black uppercase tracking-widest hover:text-purple-700 transition-all"
              >
                {ICONS.External} <span className="hidden sm:inline">SOURCE</span>
              </button>
@@ -89,13 +89,13 @@ const ProjectViewer: React.FC<ProjectViewerProps> = ({ project, track, onBack, o
             <>
               <button 
                 onClick={onEdit}
-                className="flex items-center gap-2 bg-slate-950 text-white px-3 sm:px-8 py-2 sm:py-3.5 rounded-xl sm:rounded-2xl text-[10px] sm:text-[11px] font-black uppercase tracking-widest hover:bg-purple-800 transition-all shadow-xl"
+                className="flex items-center gap-2 text-slate-950 px-2 sm:px-4 py-2 text-[10px] sm:text-[11px] font-black uppercase tracking-widest hover:text-purple-700 transition-all"
               >
                 {ICONS.Settings} <span className="hidden sm:inline">CONFIGURE</span>
               </button>
               <button 
                 onClick={onDelete}
-                className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-red-50 text-red-600 rounded-xl sm:rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100"
+                className="flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 text-slate-400 hover:text-red-600 transition-all"
                 title="Delete Tutorial"
               >
                 {ICONS.Delete}

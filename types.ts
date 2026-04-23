@@ -36,6 +36,7 @@ export interface Project {
   trackId: string;
   subcategoryId?: string | null; // Optional link to subcategory
   sections: Section[];
+  audience?: 'all' | 'trainer' | 'student';
 }
 
 export interface Subcategory {

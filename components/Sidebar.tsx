@@ -15,14 +15,12 @@ interface SidebarProps {
   selectedSubcategoryId: string | null;
   onSubcategorySelect: (id: string | null) => void;
   isAdmin: boolean;
-  onAdminLogin: () => void;
-  onAdminLogout: () => void;
-  isViewer: boolean;
-  onViewerLogin: () => void;
-  onViewerLogout: () => void;
+  onLogout: () => void;
   isOpen: boolean;
   onToggle: () => void;
   onClose: () => void;
+  searchQuery: string;
+  onSearchChange: (query: string) => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -37,18 +35,16 @@ const Sidebar: React.FC<SidebarProps> = ({
   selectedSubcategoryId,
   onSubcategorySelect,
   isAdmin,
-  onAdminLogin,
-  onAdminLogout,
-  isViewer,
-  onViewerLogin,
-  onViewerLogout,
+  onLogout,
   isOpen,
   onToggle,
-  onClose
+  onClose,
+  searchQuery,
+  onSearchChange
 }) => {
   const [draggedTrackIndex, setDraggedTrackIndex] = useState<number | null>(null);
   const [draggedSubIndex, setDraggedSubIndex] = useState<{ trackIdx: number, subIdx: number } | null>(null);
-  const [expandedTrackIds, setExpandedTrackIds] = useState<Set<string>>(new Set((Array.isArray(tracks) ? tracks : []).map(t => t.id)));
+  const [expandedTrackIds, setExpandedTrackIds] = useState<Set<string>>(new Set());
   
   // Inline adding state
   const [addingTrack, setAddingTrack] = useState(false);
@@ -57,6 +53,14 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [newSubName, setNewSubName] = useState('');
 
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const filteredTracks = (Array.isArray(tracks) ? tracks : []).filter(track => {
+    if (!searchQuery) return true;
+    const searchLower = searchQuery.toLowerCase();
+    const trackMatch = track.title.toLowerCase().includes(searchLower);
+    const subMatch = track.subcategories?.some(sub => sub.title.toLowerCase().includes(searchLower));
+    return trackMatch || subMatch;
+  });
 
   useEffect(() => {
     if ((addingTrack || addingSubToTrackId) && inputRef.current) {
@@ -192,7 +196,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      <div className={`fixed md:relative z-[70] h-screen bg-white border-r border-slate-200 flex flex-col py-8 px-4 shadow-sm shrink-0 transition-all duration-300 ease-in-out ${isOpen ? 'translate-x-0 w-80' : '-translate-x-full md:translate-x-0 md:w-20'}`}>
+      <div className={`fixed md:relative z-[70] h-screen bg-white border-r border-slate-200 flex flex-col py-8 shadow-sm shrink-0 transition-all duration-300 ease-in-out ${isOpen ? 'translate-x-0 w-80 px-4' : '-translate-x-full md:translate-x-0 md:w-20 px-2'}`}>
         {/* Desktop Toggle Button */}
         <button 
           onClick={onToggle}
@@ -203,24 +207,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </button>
 
-        <div className="flex items-center justify-between px-2 mb-10 overflow-hidden whitespace-nowrap">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 shrink-0 bg-purple-700 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-200">
-              <div className="w-5 h-5 border-2 border-white rounded-lg flex items-center justify-center">
-                <div className="w-1.5 h-1.5 bg-white rounded-full"></div>
-              </div>
-            </div>
-            <div className={`${!isOpen ? 'md:hidden' : ''}`}>
-              <h2 className="text-sm font-black text-slate-950 leading-none tracking-tight">CFF VIDEO</h2>
-              <p className="text-[11px] font-bold text-purple-700 tracking-widest mt-0.5">HUB</p>
-            </div>
-          </div>
-          <button onClick={onClose} className="md:hidden p-2 text-slate-400 hover:text-slate-950">
-            {ICONS.Back}
-          </button>
-        </div>
-
-        <div className="space-y-1">
+        <div className={`flex items-center mb-4 overflow-hidden whitespace-nowrap ${isOpen ? 'justify-between px-2' : 'justify-center'}`}>
           <button
             onClick={() => {
               onViewChange('home');
@@ -228,84 +215,127 @@ const Sidebar: React.FC<SidebarProps> = ({
               onSubcategorySelect(null);
               if (window.innerWidth < 768) onClose();
             }}
-            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold uppercase tracking-widest transition-all overflow-hidden whitespace-nowrap ${
+            className={`group relative flex items-center rounded-xl transition-all overflow-hidden whitespace-nowrap ${
+              isOpen ? 'w-full gap-4 px-2 py-3' : 'w-12 h-12 justify-center'
+            } ${
               currentView === 'home' && selectedTrackId === null
-              ? 'bg-purple-700 text-white shadow-lg shadow-purple-200' 
-              : 'text-slate-700 hover:bg-slate-100'
+              ? 'text-purple-700 bg-purple-50/50' 
+              : 'text-slate-900 group hover:bg-slate-50'
             }`}
           >
-            <span className="shrink-0">{ICONS.Home}</span>
-            <span className={`${!isOpen ? 'md:hidden' : ''}`}>HOME PAGE</span>
+            <span className={`shrink-0 transition-colors ${currentView === 'home' && selectedTrackId === null ? 'text-purple-700' : 'text-slate-700'}`}>{ICONS.Home}</span>
+            <span className={`text-[15px] font-black uppercase tracking-tight ${!isOpen ? 'md:hidden' : ''}`}>HOME PAGE</span>
+
+            {/* Custom Tooltip for collapsed state */}
+            {!isOpen && (
+              <div className="absolute left-full ml-4 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap shadow-xl z-50">
+                Home
+                <div className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
+              </div>
+            )}
+          </button>
+          <button onClick={onClose} className="md:hidden p-2 text-slate-400 hover:text-slate-950 ml-auto">
+            {ICONS.Back}
           </button>
         </div>
 
-        <div className="mt-10 flex-1 overflow-y-auto no-scrollbar">
-          <div className="px-4 flex items-center justify-between mb-6">
-            <h3 className={`text-[11px] font-black text-slate-500 uppercase tracking-widest ${!isOpen ? 'md:hidden' : ''}`}>LEARNING TRACKS</h3>
-            {isAdmin && isOpen && (
-              <button 
-                onClick={() => setAddingTrack(true)}
-                className="p-1.5 hover:bg-slate-100 rounded-lg text-purple-700 transition-colors"
-              >
-                {ICONS.Plus}
-              </button>
-            )}
-          </div>
-
-        {addingTrack && (
-          <div className="px-4 mb-4">
-            <input
-              ref={inputRef}
-              value={newTrackName}
-              onChange={(e) => setNewTrackName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && submitNewTrack()}
-              onBlur={submitNewTrack}
-              placeholder="New Track Name..."
-              className="w-full px-3 py-2 text-xs font-bold uppercase tracking-widest border-2 border-purple-300 rounded-lg focus:outline-none focus:border-purple-600 bg-white text-slate-950 shadow-sm"
-            />
+        {/* Quick Search */}
+        {isOpen && (
+          <div className="px-3 mb-6">
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 scale-75">
+                {ICONS.Search}
+              </div>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => onSearchChange(e.target.value)}
+                placeholder="Search..."
+                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl text-xs font-bold text-slate-950 focus:outline-none focus:border-purple-600 transition-all placeholder:text-slate-400"
+              />
+            </div>
           </div>
         )}
-        
-        <div className="space-y-2">
-          {(Array.isArray(tracks) ? tracks : []).map((track, tIdx) => (
-            <div key={track.id} className="space-y-1">
-              <div
-                draggable={isAdmin}
-                onDragStart={(e) => onTrackDragStart(e, tIdx)}
-                onDragOver={(e) => onTrackDragOver(e, tIdx)}
-                onDragEnd={() => setDraggedTrackIndex(null)}
-                onClick={() => handleTrackClick(track.id)}
-                className={`group flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all border border-transparent ${
-                  isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
-                } ${
-                  selectedTrackId === track.id && selectedSubcategoryId === null
-                    ? 'bg-purple-100 border-purple-200 text-purple-900 shadow-sm' 
-                    : 'hover:bg-slate-50 hover:border-slate-200 text-slate-900'
-                } ${draggedTrackIndex === tIdx ? 'opacity-40 bg-purple-50 scale-95' : 'opacity-100'}`}
-              >
-                <span className="text-xl shrink-0">{track.icon}</span>
-                <span className={`flex-1 text-[12px] font-bold tracking-wide uppercase truncate ${!isOpen ? 'md:hidden' : ''}`}>
-                  {track.title}
-                </span>
-                {isAdmin && isOpen && (
-                  <button 
-                    onClick={(e) => handleDeleteTrack(e, track.id)}
-                    className="opacity-0 group-hover:opacity-100 p-1 text-slate-300 hover:text-red-500 transition-all"
-                  >
-                    {ICONS.Delete}
-                  </button>
-                )}
-                <div 
-                  onClick={(e) => toggleTrackExpansion(e, track.id)}
-                  className={`p-1 text-slate-400 hover:text-purple-600 transition-transform duration-300 ${expandedTrackIds.has(track.id) ? 'rotate-180' : ''} ${!isOpen ? 'md:hidden' : ''}`}
-                >
-                  {ICONS.ChevronDown}
-                </div>
-              </div>
 
-              {expandedTrackIds.has(track.id) && isOpen && (
+        <div className="flex-1 overflow-y-auto pr-1 custom-scrollbar">
+          {isAdmin && isOpen && (
+            <div className="px-3 mb-6 flex items-center justify-between">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Navigation</span>
+              <button 
+                onClick={() => setAddingTrack(true)}
+                className="p-1 px-2 flex items-center gap-1.5 bg-purple-50 text-purple-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-purple-100 transition-all border border-purple-100"
+              >
+                {ICONS.Plus} Track
+              </button>
+            </div>
+          )}
+          
+          {isAdmin && isOpen && addingTrack && (
+            <div className="px-2 mb-4">
+              <input
+                ref={inputRef}
+                value={newTrackName}
+                onChange={(e) => setNewTrackName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && submitNewTrack()}
+                onBlur={submitNewTrack}
+                placeholder="New Track..."
+                className="w-full px-3 py-2 text-[11px] font-black uppercase tracking-widest border-2 border-purple-300 rounded-lg focus:outline-none focus:border-purple-600 bg-white text-slate-950 shadow-sm"
+              />
+            </div>
+          )}
+          
+          <div className={`space-y-4 ${!isOpen ? 'flex flex-col items-center' : ''}`}>
+            {filteredTracks.map((track, tIdx) => (
+              <div key={track.id} className="w-full space-y-1">
+                <div
+                  draggable={isAdmin}
+                  onDragStart={(e) => onTrackDragStart(e, tIdx)}
+                  onDragOver={(e) => onTrackDragOver(e, tIdx)}
+                  onDragEnd={() => setDraggedTrackIndex(null)}
+                  onClick={() => handleTrackClick(track.id)}
+                  className={`group flex items-center transition-all border border-transparent ${
+                    isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
+                  } ${
+                    isOpen ? 'gap-4 px-3 py-4 rounded-[1.2rem]' : 'w-12 h-12 justify-center rounded-xl mx-auto'
+                  } ${
+                    selectedTrackId === track.id && selectedSubcategoryId === null
+                      ? 'bg-[#F3E8FF] text-[#6B21A8] shadow-sm' 
+                      : 'hover:bg-slate-50 text-slate-900'
+                  } ${draggedTrackIndex === tIdx ? 'opacity-40 bg-purple-50 scale-95' : 'opacity-100'}`}
+                >
+                  <span className="text-2xl shrink-0 grayscale-[0.2] group-hover:grayscale-0 transition-all">{track.icon}</span>
+                  <span className={`flex-1 text-[13px] font-black uppercase tracking-tight truncate ${!isOpen ? 'md:hidden' : ''}`}>
+                    {track.title}
+                  </span>
+                  
+                  {isAdmin && isOpen && (
+                    <button 
+                      onClick={(e) => handleDeleteTrack(e, track.id)}
+                      className="opacity-0 group-hover:opacity-100 p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                    >
+                      {ICONS.Delete}
+                    </button>
+                  )}
+                  
+                  <div 
+                    onClick={(e) => { e.stopPropagation(); toggleTrackExpansion(e, track.id); }}
+                    className={`p-1 transition-all duration-300 ${expandedTrackIds.has(track.id) ? 'rotate-180 text-purple-600' : 'text-slate-400 group-hover:text-purple-400'} ${!isOpen ? 'md:hidden' : ''}`}
+                  >
+                    {ICONS.ChevronDown}
+                  </div>
+
+                  {/* Custom Tooltip for collapsed state */}
+                  {!isOpen && (
+                    <div className="absolute left-full ml-4 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap shadow-xl z-50">
+                      {track.title}
+                      <div className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
+                    </div>
+                  )}
+                </div>
+
+              {(expandedTrackIds.has(track.id) || (searchQuery && track.subcategories?.some(s => s.title.toLowerCase().includes(searchQuery.toLowerCase())))) && isOpen && (
                 <div className="ml-10 space-y-1 animate-in slide-in-from-top-2 duration-200">
-                  {track.subcategories?.map((sub, sIdx) => (
+                  {track.subcategories?.filter(sub => searchQuery ? sub.title.toLowerCase().includes(searchQuery.toLowerCase()) : true).map((sub, sIdx) => (
                     <div
                       key={sub.id}
                       draggable={isAdmin}
@@ -364,33 +394,24 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      <div className="mt-auto space-y-2">
+      <div className="mt-auto pt-6 border-t border-slate-100 px-3 pb-4">
         <button 
-          onClick={isViewer ? onViewerLogout : onViewerLogin}
-          className={`w-full mx-0 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all shadow-sm ${
-            isViewer 
-            ? 'bg-purple-100 text-purple-700 hover:bg-purple-200' 
-            : 'bg-white border-2 border-slate-200 text-slate-700 hover:border-purple-200 hover:text-purple-700'
+          onClick={onLogout}
+          title="Logout"
+          className={`group relative w-full flex items-center justify-center transition-all shadow-xl active:scale-95 ${
+            isOpen ? 'gap-3 py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-red-600' : 'w-12 h-12 bg-slate-900 text-white rounded-xl mx-auto hover:bg-red-600'
           }`}
         >
-          <span className="shrink-0">{isViewer ? ICONS.Back : ICONS.Play}</span>
-          <span className={`${!isOpen ? 'md:hidden' : ''}`}>
-            {isViewer ? 'VIEWER LOGOUT' : 'VIEWER LOGIN'}
-          </span>
-        </button>
-
-        <button 
-          onClick={isAdmin ? onAdminLogout : onAdminLogin}
-          className={`w-full mx-0 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all shadow-md ${
-            isAdmin 
-            ? 'bg-slate-800 text-white hover:bg-slate-900' 
-            : 'bg-slate-900 text-white hover:bg-purple-800'
-          }`}
-        >
-          <span className="shrink-0">{isAdmin ? ICONS.Back : ICONS.Admin}</span>
-          <span className={`${!isOpen ? 'md:hidden' : ''}`}>
-            {isAdmin ? 'EP LOGOUT' : 'EP ADMIN LOGIN'}
-          </span>
+          <span className="shrink-0 scale-110">{ICONS.Back}</span>
+          {isOpen && <span className="font-black uppercase tracking-widest">LOG OUT</span>}
+          
+          {/* Custom Tooltip for collapsed state */}
+          {!isOpen && (
+            <div className="absolute left-full ml-4 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap shadow-xl z-50">
+              Logout
+              <div className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
+            </div>
+          )}
         </button>
       </div>
     </div>

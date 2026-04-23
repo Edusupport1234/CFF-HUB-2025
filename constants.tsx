@@ -24,7 +24,10 @@ import {
   Heading1,
   Palette,
   Layers,
-  Menu
+  Menu,
+  ShieldCheck,
+  BookOpen,
+  Presentation
 } from 'lucide-react';
 import { LearningTrack } from './types';
 
@@ -54,7 +57,10 @@ export const ICONS = {
   Heading: <Heading1 size={18} />,
   Theme: <Palette size={16} />,
   Layout: <Layers size={16} />,
-  Menu: <Menu size={20} />
+  Menu: <Menu size={20} />,
+  Student: <BookOpen size={32} />,
+  Trainer: <Presentation size={32} />,
+  Shield: <ShieldCheck size={32} />
 };
 
 export const DEFAULT_TRACKS: LearningTrack[] = [
@@ -70,6 +76,15 @@ export const DEFAULT_TRACKS: LearningTrack[] = [
     ]
   },
   {
+    id: 'code-2024',
+    title: 'CODE FOR FUN 2024',
+    subtitle: 'VIDEO TUTORIALS FOR CODE FOR FUN 2024',
+    icon: '📜',
+    subcategories: [
+      { id: 'servo-motor', title: 'Servo Motor' }
+    ]
+  },
+  {
     id: 'code-2026',
     title: 'CODE FOR FUN 2026',
     subtitle: 'VIDEO TUTORIALS FOR CODE FOR FUN 2026',
@@ -80,10 +95,33 @@ export const DEFAULT_TRACKS: LearningTrack[] = [
     ]
   },
   {
-    id: 'code-2024',
-    title: 'CODE FOR FUN 2024',
-    subtitle: 'VIDEO TUTORIALS FOR CODE FOR FUN 2024',
-    icon: '📜',
-    subcategories: []
+    id: 'trainer-code-2026',
+    title: 'TRAINER: CODE FOR FUN 2026',
+    subtitle: 'TRAINER RESOURCES FOR CFF 2026',
+    icon: '👨‍🏫',
+    subcategories: [
+      { id: 'code-block', title: 'Block Programming' },
+      { id: 'code-python', title: 'Python Basics' }
+    ]
+  },
+  {
+    id: 'trainer-code-2024',
+    title: 'TRAINER: CODE FOR FUN 2024',
+    subtitle: 'TRAINER RESOURCES FOR CFF 2024',
+    icon: '🔧',
+    subcategories: [
+      { id: 'servo-motor', title: 'Servo Motor' }
+    ]
+  },
+  {
+    id: 'trainer-ai-2026',
+    title: 'TRAINER: AI FOR FUN 2026',
+    subtitle: 'TRAINER RESOURCES FOR AI 2026',
+    icon: '🧠',
+    subcategories: [
+      { id: 'ai-intro', title: 'Getting Started' },
+      { id: 'ai-vision', title: 'Computer Vision' },
+      { id: 'ai-nlp', title: 'Natural Language' }
+    ]
   }
 ];

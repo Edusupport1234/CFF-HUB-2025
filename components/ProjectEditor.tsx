@@ -16,6 +16,7 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
   const [thumbnail, setThumbnail] = useState(project.thumbnail);
   const [trackId, setTrackId] = useState(project.trackId);
   const [subcategoryId, setSubcategoryId] = useState(project.subcategoryId || '');
+  const [audience, setAudience] = useState<'all' | 'trainer' | 'student'>(project.audience || 'all');
   const [errors, setErrors] = useState<Record<string, string>>({});
   
   // Extract initial values from existing project structure if they exist
@@ -76,7 +77,8 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
       sections: [simpleSection], 
       thumbnail, 
       status: ProjectStatus.PUBLISHED, 
-      lastEdited: 'Just now' 
+      lastEdited: 'Just now',
+      audience
     });
   };
 
@@ -101,8 +103,8 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
       {/* Header */}
       <header className="h-16 sm:h-20 bg-white border-b-2 border-slate-200 px-4 sm:px-10 flex items-center justify-between z-30 shrink-0">
         <div className="flex items-center gap-3 sm:gap-6">
-          <button onClick={onBack} className="p-2 sm:p-3 bg-slate-100 hover:bg-slate-200 rounded-xl sm:rounded-2xl transition-all text-slate-900 border border-slate-200">
-            {ICONS.Back}
+          <button onClick={onBack} className="p-2 sm:p-3 hover:text-purple-700 transition-colors text-slate-900 group">
+            <span className="group-hover:-translate-x-1 transition-transform inline-block">{ICONS.Back}</span>
           </button>
           <h2 className="text-sm sm:text-xl font-black uppercase tracking-tight text-slate-950 truncate max-w-[120px] sm:max-w-none">
             {project.id ? 'Edit Tutorial' : 'New Tutorial'}
@@ -111,7 +113,7 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
         <div className="flex items-center gap-2 sm:gap-4">
           <button 
             onClick={onBack} 
-            className="px-4 sm:px-8 py-2 sm:py-3.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-all"
+            className="px-4 sm:px-8 py-2 sm:py-3.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-500 hover:text-purple-700 transition-all"
           >
             Cancel
           </button>
@@ -125,7 +127,7 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
       </header>
 
       {/* Form Area */}
-      <main className="flex-1 overflow-y-auto p-6 sm:p-12 no-scrollbar">
+      <main className="flex-1 overflow-y-auto p-6 sm:p-12">
         <div className="max-w-4xl mx-auto space-y-8 sm:y-12 animate-slide-up pb-20">
           
           {/* Section: Basic Info */}
@@ -177,6 +179,29 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
                 </select>
               </div>
             </div>
+
+            <div className="space-y-4">
+              <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest block">Who is this for? (Audience)</label>
+              <div className="flex flex-wrap gap-4">
+                {[
+                  { value: 'all', label: 'All Users', icon: ICONS.Home },
+                  { value: 'trainer', label: 'Trainers Only', icon: ICONS.Admin }
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setAudience(opt.value as any)}
+                    className={`flex items-center gap-3 px-6 py-4 rounded-2xl border-2 transition-all font-bold text-xs uppercase tracking-widest ${
+                      audience === opt.value 
+                        ? 'bg-purple-700 border-purple-700 text-white shadow-lg' 
+                        : 'bg-slate-50 border-slate-100 text-slate-600 hover:border-purple-200'
+                    }`}
+                  >
+                    <span className="scale-110">{opt.icon}</span>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Section: Media & Link */}
@@ -224,9 +249,9 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
               <h3 className="text-[12px] sm:text-[14px] font-black text-purple-700 uppercase tracking-[0.3em]">Thumbnail Image</h3>
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="px-4 sm:px-6 py-2 sm:py-3 bg-purple-50 text-purple-700 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-widest hover:bg-purple-100 transition-all"
+                className="px-4 sm:px-6 py-2 sm:py-3 text-purple-700 rounded-full text-[10px] sm:text-[11px] font-black uppercase tracking-widest hover:text-purple-900 transition-all underline decoration-2 underline-offset-4"
               >
-                Choose
+                Choose Image
               </button>
             </div>
             

@@ -32,6 +32,28 @@
       .animate-slide-up {
         animation: slideUp 0.5s ease-out forwards;
       }
+      @keyframes infinite-scroll {
+        from { transform: translateX(0); }
+        to { transform: translateX(-50%); }
+      }
+      .animate-infinite-scroll {
+        animation: infinite-scroll 60s linear infinite;
+      }
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 8px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: #f1f5f9;
+        border-radius: 12px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #64748b;
+        border-radius: 12px;
+        border: 2px solid #f1f5f9;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+        background: #475569;
+      }
     </style>
   <script type="importmap">
 {
@@ -46,7 +68,7 @@
 }
 </script>
 </head>
-  <body class="overflow-hidden">
+  <body class="bg-slate-50 overflow-hidden">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>
