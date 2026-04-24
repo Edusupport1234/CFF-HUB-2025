@@ -28,7 +28,9 @@ import {
   ShieldCheck,
   BookOpen,
   Presentation,
-  ArrowUp
+  ArrowUp,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { LearningTrack } from './types';
 
@@ -62,7 +64,9 @@ export const ICONS = {
   Student: <BookOpen size={32} />,
   Trainer: <Presentation size={32} />,
   Shield: <ShieldCheck size={32} />,
-  Up: <ArrowUp size={20} />
+  Up: <ArrowUp size={20} />,
+  Sun: <Sun size={20} />,
+  Moon: <Moon size={20} />
 };
 
 export const DEFAULT_TRACKS: LearningTrack[] = [

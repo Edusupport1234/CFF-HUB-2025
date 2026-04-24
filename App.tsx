@@ -86,9 +86,12 @@ const App: React.FC = () => {
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const mainContentRef = React.useRef<HTMLElement>(null);
   
+  const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
+
   // Custom Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -512,6 +515,13 @@ const App: React.FC = () => {
       return crumbs;
     };
 
+    const getGridClasses = () => {
+      if (isSidebarOpen) {
+        return "grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 sm:gap-10";
+      }
+      return "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 sm:gap-12";
+    };
+
     const renderProjectCard = (project: Project) => {
       const displayImg = getProjectDisplayThumbnail(project);
       const isDragging = draggedProjectId === project.id;
@@ -522,14 +532,18 @@ const App: React.FC = () => {
           onDragStart={(e) => onProjectDragStart(e, project.id)}
           onDragOver={(e) => onProjectDragOver(e, project.id)}
           onDragEnd={onProjectDragEnd}
-          className={`group bg-white rounded-[2rem] sm:rounded-[3.5rem] border-2 border-slate-200 overflow-hidden hover:shadow-2xl hover:shadow-purple-700/20 transition-all duration-500 cursor-pointer ${
+          className={`group rounded-[2rem] sm:rounded-[3rem] border-2 overflow-hidden hover:shadow-2xl transition-all duration-500 cursor-pointer ${
+            isDarkMode 
+              ? 'bg-[#15171e] border-slate-800 hover:border-purple-500/50 hover:shadow-black/60' 
+              : 'bg-white border-slate-200 hover:border-purple-400 shadow-sm hover:shadow-purple-700/20'
+          } ${
             canEdit ? 'cursor-grab active:cursor-grabbing' : ''
-          } hover:border-purple-400 ${
+          } ${
             isDragging ? 'opacity-20 scale-95 border-purple-500' : 'opacity-100'
           }`}
           onClick={() => handleProjectClick(project)}
         >
-          <div className="relative aspect-video overflow-hidden border-b-2 border-slate-100">
+          <div className={`relative aspect-video overflow-hidden border-b-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
             <img 
               src={displayImg} 
               alt={project.title}
@@ -537,36 +551,36 @@ const App: React.FC = () => {
             />
             <div className="absolute inset-0 bg-slate-950/0 group-hover:bg-purple-950/40 transition-all duration-500" />
             <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-               <div className="w-14 h-14 sm:w-16 sm:h-16 bg-white rounded-full flex items-center justify-center text-purple-700 shadow-2xl scale-75 group-hover:scale-100 transition-transform duration-500">
-                 <div className="scale-125">{ICONS.Play}</div>
+               <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-purple-700 shadow-2xl scale-75 group-hover:scale-100 transition-transform duration-500">
+                 <div className="scale-110">{ICONS.Play}</div>
                </div>
             </div>
             {canEdit && (
               <button 
                 onClick={(e) => handleDeleteProject(e, project.id)}
-                className="absolute top-4 right-4 sm:top-6 sm:right-6 w-10 h-10 sm:w-12 sm:h-12 bg-white/90 backdrop-blur-md rounded-xl sm:rounded-2xl flex items-center justify-center text-red-500 shadow-xl opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white z-20"
+                className="absolute top-4 right-4 w-9 h-9 bg-white/90 backdrop-blur-md rounded-xl flex items-center justify-center text-red-500 shadow-xl opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all hover:bg-red-50 hover:text-white z-20"
               >
-                <div className="scale-90 sm:scale-110">{ICONS.Delete}</div>
+                <div className="scale-90">{ICONS.Delete}</div>
               </button>
             )}
           </div>
-          <div className="p-6 sm:p-8">
-            <div className="flex items-center gap-2 mb-4">
-              <span className="px-3 py-1 bg-purple-700 text-white rounded-[1rem] text-[9px] font-black uppercase tracking-widest shadow-lg shadow-purple-200">
+          <div className="p-5 sm:p-7">
+            <div className="flex items-center gap-2 mb-3 sm:mb-4">
+              <span className={`px-2.5 py-0.5 bg-purple-700 text-white rounded-[0.8rem] text-[8px] font-black uppercase tracking-widest shadow-lg ${isDarkMode ? 'shadow-black/50' : 'shadow-purple-200'}`}>
                 {project.status}
               </span>
               {canEdit && (
-                <span className="px-3 py-1 bg-slate-900 text-white rounded-[1rem] text-[9px] font-black uppercase tracking-widest shadow-lg shadow-slate-200">
+                <span className={`px-2.5 py-0.5 bg-slate-900 text-white rounded-[0.8rem] text-[8px] font-black uppercase tracking-widest shadow-lg ${isDarkMode ? 'shadow-black/50' : 'shadow-slate-200'}`}>
                   {project.audience || 'ALL'}
                 </span>
               )}
             </div>
-            <h4 className="text-[14px] sm:text-[16px] font-black text-slate-950 uppercase tracking-tight group-hover:text-purple-700 transition-colors line-clamp-2 leading-tight">
+            <h4 className={`text-[13px] sm:text-[15px] font-black uppercase tracking-tight group-hover:text-purple-700 transition-colors line-clamp-2 leading-tight min-h-[2.5rem] ${isDarkMode ? 'text-slate-200' : 'text-slate-950'}`}>
               {project.title}
             </h4>
-            <div className="flex items-center justify-between mt-4 sm:mt-6 pt-4 sm:pt-6 border-t-2 border-slate-100">
-               <span className="text-[9px] sm:text-[10px] font-black text-slate-600 uppercase tracking-widest">{getRelativeTime(project.lastEdited)}</span>
-               <div className="text-[9px] sm:text-[10px] font-black text-purple-700 uppercase flex items-center gap-2 group-hover:translate-x-1 transition-transform">
+            <div className={`flex items-center justify-between mt-4 sm:mt-5 pt-4 sm:pt-5 border-t-2 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+               <span className={`text-[9px] font-black uppercase tracking-widest ${isDarkMode ? 'text-slate-500' : 'text-slate-500'}`}>{getRelativeTime(project.lastEdited)}</span>
+               <div className={`text-[9px] font-black uppercase flex items-center gap-1.5 group-hover:translate-x-1 transition-transform ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>
                  LEARN {ICONS.External}
                </div>
             </div>
@@ -581,12 +595,18 @@ const App: React.FC = () => {
         <div 
           key={`add-${trackId}-${subcategoryId || 'main'}`}
           onClick={() => handleCreateProject(trackId, subcategoryId)}
-          className="group aspect-video xl:aspect-auto xl:h-full min-h-[200px] sm:min-h-[250px] border-4 border-dashed border-slate-200 rounded-[2rem] sm:rounded-[3.5rem] bg-white/50 flex flex-col items-center justify-center gap-4 hover:border-purple-600 hover:bg-purple-50 transition-all cursor-pointer shadow-sm hover:shadow-xl"
+          className={`group aspect-video xl:aspect-auto xl:h-full min-h-[180px] sm:min-h-[220px] border-4 border-dashed rounded-[2rem] sm:rounded-[3rem] flex flex-col items-center justify-center gap-3 hover:border-purple-600 hover:bg-purple-50/10 transition-all cursor-pointer shadow-sm hover:shadow-xl ${
+            isDarkMode 
+              ? 'border-slate-800 bg-[#15171e]/50' 
+              : 'border-slate-200 bg-white/50'
+          }`}
         >
-          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-inner">
-            <div className="scale-125 sm:scale-150 transition-transform group-hover:rotate-90">{ICONS.Plus}</div>
+          <div className={`w-10 h-10 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all shadow-inner ${
+            isDarkMode ? 'bg-slate-800 text-slate-600' : 'bg-slate-100 text-slate-400'
+          } group-hover:bg-purple-600 group-hover:text-white`}>
+            <div className="scale-110 sm:scale-125 transition-transform group-hover:rotate-90">{ICONS.Plus}</div>
           </div>
-          <span className="text-[10px] sm:text-[11px] font-black text-slate-400 uppercase tracking-[0.3em] group-hover:text-purple-700 transition-colors">
+          <span className="text-[9px] sm:text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] group-hover:text-purple-700 transition-colors">
             ADD TUTORIAL
           </span>
         </div>
@@ -594,20 +614,20 @@ const App: React.FC = () => {
     };
 
     return (
-      <div className="flex h-screen bg-slate-100 overflow-hidden relative flex-col md:flex-row">
+      <div className={`flex h-screen overflow-hidden relative flex-col md:flex-row transition-colors duration-500 ${isDarkMode ? 'dark bg-[#0a0b0d]' : 'bg-slate-100'}`}>
         {/* Confirmation Modal */}
         {confirmModal.isOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="w-full max-w-md bg-white rounded-[3rem] p-10 shadow-2xl animate-slide-up">
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-8 ${confirmModal.isDestructive ? 'bg-red-50 text-red-600' : 'bg-purple-50 text-purple-700'}`}>
+            <div className={`w-full max-w-md rounded-[3rem] p-10 shadow-2xl animate-slide-up ${isDarkMode ? 'bg-[#15171e]' : 'bg-white'}`}>
+              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-8 ${confirmModal.isDestructive ? 'bg-red-50 text-red-600' : (isDarkMode ? 'bg-purple-950 text-purple-400' : 'bg-purple-50 text-purple-700')}`}>
                 <div className="scale-150">{confirmModal.isDestructive ? ICONS.Delete : ICONS.Settings}</div>
               </div>
-              <h3 className="text-2xl font-black text-slate-950 uppercase tracking-tight mb-4">{confirmModal.title}</h3>
-              <p className="text-slate-600 font-bold leading-relaxed mb-10">{confirmModal.message}</p>
+              <h3 className={`text-2xl font-black uppercase tracking-tight mb-4 ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>{confirmModal.title}</h3>
+              <p className={`font-bold leading-relaxed mb-10 ${isDarkMode ? 'text-slate-400' : 'text-slate-600'}`}>{confirmModal.message}</p>
               <div className="flex items-center gap-4">
                 <button 
                   onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-                  className="flex-1 px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 transition-all"
+                  className={`flex-1 px-8 py-4 rounded-2xl text-xs font-black uppercase tracking-widest transition-all ${isDarkMode ? 'text-slate-400 hover:bg-slate-800' : 'text-slate-500 hover:bg-slate-100'}`}
                 >
                   Cancel
                 </button>
@@ -629,6 +649,7 @@ const App: React.FC = () => {
               tracks={tracks} 
               onSave={handleSaveProject} 
               onBack={() => { setCurrentView('home'); setSelectedProject(null); }} 
+              isDarkMode={isDarkMode}
             />
           </div>
         ) : currentView === 'viewer' && selectedProject ? (
@@ -640,11 +661,15 @@ const App: React.FC = () => {
               onEdit={() => setCurrentView('editor')}
               onDelete={(e) => handleDeleteProject(e, selectedProject.id)}
               isAdmin={canEdit}
+              isSidebarOpen={isSidebarOpen}
+              isDarkMode={isDarkMode}
             />
           </div>
         ) : (
           <>
             <Sidebar 
+              isDarkMode={isDarkMode}
+              toggleDarkMode={toggleDarkMode}
               currentView={currentView} 
               onViewChange={setCurrentView} 
               tracks={displayTracks}
@@ -666,13 +691,17 @@ const App: React.FC = () => {
             <main 
               ref={mainContentRef} 
               onScroll={handleMainScroll}
-              className="flex-1 flex flex-col relative overflow-y-auto px-4 sm:px-12 py-6 sm:py-12 scroll-smooth"
+              className={`flex-1 flex flex-col relative overflow-y-auto custom-scrollbar py-6 sm:py-12 scroll-smooth ${isSidebarOpen ? 'px-4 sm:px-6 lg:px-12' : 'px-4 sm:px-12 lg:px-20'}`}
             >
               {/* Back to Top Arrow */}
               {showScrollTop && (
                 <button 
                   onClick={scrollToTop}
-                  className="fixed bottom-10 right-6 sm:right-10 z-[100] w-12 h-12 bg-white/80 backdrop-blur-md text-purple-700 rounded-full flex items-center justify-center shadow-xl border-2 border-slate-100 hover:bg-purple-700 hover:text-white transition-all scale-100 hover:scale-110 active:scale-95 animate-in fade-in slide-in-from-bottom-5 duration-300 group"
+                  className={`fixed bottom-10 right-6 sm:right-10 z-[100] w-12 h-12 rounded-full flex items-center justify-center shadow-xl border-2 transition-all scale-100 hover:scale-110 active:scale-95 animate-in fade-in slide-in-from-bottom-5 duration-300 group ${
+                    isDarkMode 
+                      ? 'bg-slate-800/80 backdrop-blur-md text-purple-400 border-slate-700 hover:bg-purple-700 hover:text-white shadow-black/40' 
+                      : 'bg-white/80 backdrop-blur-md text-purple-700 border-slate-100 hover:bg-purple-700 hover:text-white'
+                  }`}
                   aria-label="Back to Top"
                 >
                   <div className="group-hover:-translate-y-1 transition-transform">
@@ -681,18 +710,20 @@ const App: React.FC = () => {
                 </button>
               )}
               {/* Mobile Header */}
-              <div className="md:hidden flex items-center justify-between mb-8 bg-white p-4 rounded-2xl border-2 border-slate-200 shadow-sm">
+              <div className={`md:hidden flex items-center justify-between mb-8 p-4 rounded-2xl border-2 shadow-sm ${
+                isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+              }`}>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-purple-700 rounded-lg flex items-center justify-center text-white">
                     <div className="w-4 h-4 border-2 border-white rounded flex items-center justify-center">
                       <div className="w-1 h-1 bg-white rounded-full"></div>
                     </div>
                   </div>
-                  <span className="text-xs font-black text-slate-950 uppercase tracking-tight">CFF HUB</span>
+                  <span className={`text-xs font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>CFF HUB</span>
                 </div>
                 <button 
                   onClick={() => setIsSidebarOpen(true)}
-                  className="p-2 bg-slate-100 rounded-xl text-slate-900"
+                  className={`p-2 rounded-xl ${isDarkMode ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-900'}`}
                 >
                   {ICONS.Menu}
                 </button>
@@ -701,10 +732,10 @@ const App: React.FC = () => {
               <header className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12 sm:mb-16">
                 <div className="group flex items-center gap-4">
                   <div>
-                    <h1 className="text-[18px] sm:text-[28px] font-black text-slate-950 leading-tight uppercase tracking-tight flex items-center flex-wrap gap-y-1">
+                    <h1 className={`text-[18px] sm:text-[28px] font-black leading-tight uppercase tracking-tight flex items-center flex-wrap gap-y-1 ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>
                       {getBreadcrumbs()}
                     </h1>
-                    <p className="text-[11px] sm:text-[14px] font-black text-purple-700 uppercase tracking-[0.3em] mt-1">
+                    <p className={`text-[11px] sm:text-[14px] font-black uppercase tracking-[0.3em] mt-1 ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>
                       {role === 'admin' ? 'ADMIN CONSOLE' : role === 'trainer' ? 'TRAINER HUB' : 'STUDENT PORTAL'}
                     </p>
                   </div>
@@ -726,7 +757,7 @@ const App: React.FC = () => {
                   {canEdit && (
                     <button 
                       onClick={() => handleCreateProject()}
-                      className="w-full md:w-auto flex items-center justify-center gap-3 bg-purple-700 text-white px-8 sm:px-10 py-4 sm:py-5 rounded-[1.5rem] sm:rounded-[2rem] text-[11px] sm:text-[13px] font-black uppercase tracking-widest hover:bg-slate-950 shadow-2xl transition-all active:scale-95"
+                      className={`w-full md:w-auto flex items-center justify-center gap-3 bg-purple-700 text-white px-8 sm:px-10 py-4 sm:py-5 rounded-[1.5rem] sm:rounded-[2rem] text-[11px] sm:text-[13px] font-black uppercase tracking-widest hover:bg-slate-950 shadow-2xl transition-all active:scale-95 ${isDarkMode ? 'shadow-black/50 hover:bg-purple-600' : ''}`}
                     >
                       {ICONS.Plus} ADD TUTORIAL
                     </button>
@@ -746,12 +777,12 @@ const App: React.FC = () => {
                   return (
                     <section key={track.id} className="space-y-10 sm:space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
                       {!selectedTrackId && (
-                        <div className="flex items-center justify-between border-b-4 border-slate-200 pb-6 sm:pb-8 cursor-pointer group" onClick={() => setSelectedTrackId(track.id)}>
+                        <div className={`flex items-center justify-between border-b-4 pb-6 sm:pb-8 cursor-pointer group ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`} onClick={() => setSelectedTrackId(track.id)}>
                           <div className="flex items-center gap-4 sm:gap-6">
-                            <span className="text-3xl sm:text-5xl bg-white p-3 sm:p-5 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-xl border-2 border-slate-100 group-hover:scale-105 transition-transform">{track.icon}</span>
+                            <span className={`text-3xl sm:text-5xl p-3 sm:p-5 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-xl border-2 group-hover:scale-105 transition-transform ${isDarkMode ? 'bg-[#15171e] border-slate-700 shadow-black/40' : 'bg-white border-slate-100'}`}>{track.icon}</span>
                             <div>
-                              <h3 className="text-xl sm:text-3xl font-black text-slate-950 uppercase tracking-tight leading-none group-hover:text-purple-700 transition-colors">{track.title}</h3>
-                              <p className="text-[10px] sm:text-[13px] font-black text-slate-600 uppercase tracking-[0.2em] mt-2 sm:mt-3">{track.subtitle}</p>
+                              <h3 className={`text-xl sm:text-3xl font-black uppercase tracking-tight leading-none group-hover:text-purple-700 transition-colors ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>{track.title}</h3>
+                              <p className={`text-[10px] sm:text-[13px] font-black uppercase tracking-[0.2em] mt-2 sm:mt-3 ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}>{track.subtitle}</p>
                             </div>
                           </div>
                         </div>
@@ -766,7 +797,7 @@ const App: React.FC = () => {
                                   <span className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${selectedSubcategoryId === sub.id ? 'bg-purple-900 scale-125' : 'bg-purple-600'}`} />
                                   {sub.title}
                                 </h4>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 sm:gap-12">
+                                <div className={getGridClasses()}>
                                   {subProjects.map(project => renderProjectCard(project))}
                                   {canEdit && renderAddPlaceholder(track.id, sub.id)}
                                 </div>
@@ -776,7 +807,7 @@ const App: React.FC = () => {
                           {!selectedSubcategoryId && trackProjects.filter(p => !p.subcategoryId).length > 0 && (
                             <div className="space-y-6 sm:space-y-8 pl-3 sm:pl-4">
                               <h4 className="text-lg sm:text-xl font-black text-slate-400 uppercase tracking-widest">Other Tutorials</h4>
-                              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 sm:gap-12">
+                              <div className={getGridClasses()}>
                                 {trackProjects.filter(p => !p.subcategoryId).map(project => renderProjectCard(project))}
                                 {canEdit && renderAddPlaceholder(track.id)}
                               </div>
@@ -785,7 +816,7 @@ const App: React.FC = () => {
                         </div>
                       ) : (
                         (!selectedSubcategoryId) && (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 sm:gap-12">
+                          <div className={getGridClasses()}>
                             {trackProjects.map((project) => renderProjectCard(project))}
                             {canEdit && renderAddPlaceholder(track.id)}
                           </div>
@@ -808,6 +839,8 @@ const App: React.FC = () => {
         <LandingPage 
           onAdminLoginSuccess={() => { setIsAuthenticated(true); }} 
           onTrainerLoginSuccess={() => { setIsViewerAuthenticated(true); }} 
+          isDarkMode={isDarkMode}
+          toggleDarkMode={toggleDarkMode}
         />
       } />
       <Route path="/student" element={renderMainHub('student')} />

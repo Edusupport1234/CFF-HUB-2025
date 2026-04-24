@@ -21,6 +21,8 @@ interface SidebarProps {
   onClose: () => void;
   searchQuery: string;
   onSearchChange: (query: string) => void;
+  isDarkMode: boolean;
+  toggleDarkMode: () => void;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
@@ -40,7 +42,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   onToggle,
   onClose,
   searchQuery,
-  onSearchChange
+  onSearchChange,
+  isDarkMode,
+  toggleDarkMode
 }) => {
   const [draggedTrackIndex, setDraggedTrackIndex] = useState<number | null>(null);
   const [draggedSubIndex, setDraggedSubIndex] = useState<{ trackIdx: number, subIdx: number } | null>(null);
@@ -196,11 +200,19 @@ const Sidebar: React.FC<SidebarProps> = ({
         />
       )}
 
-      <div className={`fixed md:relative z-[70] h-screen bg-white border-r border-slate-200 flex flex-col py-8 shadow-sm shrink-0 transition-all duration-300 ease-in-out ${isOpen ? 'translate-x-0 w-80 px-4' : '-translate-x-full md:translate-x-0 md:w-20 px-2'}`}>
+      <div className={`fixed md:relative z-[70] h-screen border-r transition-all duration-500 ease-in-out flex flex-col py-8 shadow-sm shrink-0 ${
+        isDarkMode 
+          ? 'bg-[#15171e] border-slate-800' 
+          : 'bg-white border-slate-200'
+      } ${isOpen ? 'translate-x-0 w-80 px-4' : '-translate-x-full md:translate-x-0 md:w-20 px-2'}`}>
         {/* Desktop Toggle Button */}
         <button 
           onClick={onToggle}
-          className="hidden md:flex absolute -right-4 top-10 w-8 h-8 bg-white border-2 border-slate-200 rounded-full items-center justify-center text-slate-400 hover:text-purple-700 hover:border-purple-200 transition-all shadow-sm z-[80]"
+          className={`hidden md:flex absolute -right-4 top-10 w-8 h-8 border-2 rounded-full items-center justify-center transition-all shadow-sm z-[80] ${
+            isDarkMode 
+              ? 'bg-slate-800 border-slate-700 text-slate-400 hover:text-purple-400' 
+              : 'bg-white border-slate-200 text-slate-400 hover:text-purple-700'
+          }`}
         >
           <div className={`transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
             {ICONS.ChevronRight}
@@ -219,11 +231,11 @@ const Sidebar: React.FC<SidebarProps> = ({
               isOpen ? 'w-full gap-4 px-2 py-3' : 'w-12 h-12 justify-center'
             } ${
               currentView === 'home' && selectedTrackId === null
-              ? 'text-purple-700 bg-purple-50/50' 
-              : 'text-slate-900 group hover:bg-slate-50'
+              ? (isDarkMode ? 'text-purple-400 bg-purple-500/10' : 'text-purple-700 bg-purple-50/50')
+              : (isDarkMode ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-900 hover:bg-slate-50')
             }`}
           >
-            <span className={`shrink-0 transition-colors ${currentView === 'home' && selectedTrackId === null ? 'text-purple-700' : 'text-slate-700'}`}>{ICONS.Home}</span>
+            <span className={`shrink-0 transition-colors ${currentView === 'home' && selectedTrackId === null ? (isDarkMode ? 'text-purple-400' : 'text-purple-700') : (isDarkMode ? 'text-slate-400' : 'text-slate-700')}`}>{ICONS.Home}</span>
             <span className={`text-[15px] font-black uppercase tracking-tight ${!isOpen ? 'md:hidden' : ''}`}>HOME PAGE</span>
 
             {/* Custom Tooltip for collapsed state */}
@@ -251,7 +263,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                 value={searchQuery}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder="Search..."
-                className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl text-xs font-bold text-slate-950 focus:outline-none focus:border-purple-600 transition-all placeholder:text-slate-400"
+                className={`w-full pl-9 pr-4 py-2.5 rounded-xl text-xs font-bold focus:outline-none transition-all placeholder:text-slate-400 ${
+                  isDarkMode 
+                    ? 'bg-slate-800 border-2 border-slate-700 text-white focus:border-purple-500' 
+                    : 'bg-slate-50 border-2 border-slate-100 text-slate-950 focus:border-purple-600'
+                }`}
               />
             </div>
           </div>
@@ -263,7 +279,11 @@ const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Navigation</span>
               <button 
                 onClick={() => setAddingTrack(true)}
-                className="p-1 px-2 flex items-center gap-1.5 bg-purple-50 text-purple-700 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-purple-100 transition-all border border-purple-100"
+                className={`p-1 px-2 flex items-center gap-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
+                  isDarkMode 
+                    ? 'bg-purple-900/30 text-purple-400 border-purple-800 hover:bg-purple-900/50' 
+                    : 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100'
+                }`}
               >
                 {ICONS.Plus} Track
               </button>
@@ -279,7 +299,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onKeyDown={(e) => e.key === 'Enter' && submitNewTrack()}
                 onBlur={submitNewTrack}
                 placeholder="New Track..."
-                className="w-full px-3 py-2 text-[11px] font-black uppercase tracking-widest border-2 border-purple-300 rounded-lg focus:outline-none focus:border-purple-600 bg-white text-slate-950 shadow-sm"
+                className={`w-full px-3 py-2 text-[11px] font-black uppercase tracking-widest border-2 rounded-lg focus:outline-none transition-all shadow-sm ${
+                  isDarkMode 
+                    ? 'bg-slate-800 border-purple-900 text-white focus:border-purple-500' 
+                    : 'bg-white border-purple-300 text-slate-950 focus:border-purple-600'
+                }`}
               />
             </div>
           )}
@@ -293,14 +317,14 @@ const Sidebar: React.FC<SidebarProps> = ({
                   onDragOver={(e) => onTrackDragOver(e, tIdx)}
                   onDragEnd={() => setDraggedTrackIndex(null)}
                   onClick={() => handleTrackClick(track.id)}
-                  className={`group flex items-center transition-all border border-transparent ${
+                  className={`group flex items-center transition-all border ${
                     isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
                   } ${
                     isOpen ? 'gap-4 px-3 py-4 rounded-[1.2rem]' : 'w-12 h-12 justify-center rounded-xl mx-auto'
                   } ${
                     selectedTrackId === track.id && selectedSubcategoryId === null
-                      ? 'bg-[#F3E8FF] text-[#6B21A8] shadow-sm' 
-                      : 'hover:bg-slate-50 text-slate-900'
+                      ? (isDarkMode ? 'bg-purple-500/10 text-purple-400 border-purple-500/20 shadow-none' : 'bg-[#F3E8FF] text-[#6B21A8] border-transparent shadow-sm') 
+                      : isDarkMode ? 'hover:bg-slate-800 text-slate-200 border-transparent' : 'hover:bg-slate-50 text-slate-900 border-transparent'
                   } ${draggedTrackIndex === tIdx ? 'opacity-40 bg-purple-50 scale-95' : 'opacity-100'}`}
                 >
                   <span className="text-2xl shrink-0 grayscale-[0.2] group-hover:grayscale-0 transition-all">{track.icon}</span>
@@ -347,12 +371,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                         isAdmin ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
                       } ${
                         selectedSubcategoryId === sub.id 
-                          ? 'bg-purple-50 border-purple-100 text-purple-700' 
-                          : 'hover:bg-slate-50 hover:border-slate-200 text-slate-600'
+                          ? (isDarkMode ? 'bg-purple-900/30 border-purple-800 text-purple-400' : 'bg-purple-50 border-purple-100 text-purple-700')
+                          : (isDarkMode ? 'hover:bg-slate-800 hover:border-slate-700 text-slate-400' : 'hover:bg-slate-50 hover:border-slate-200 text-slate-600')
                       } ${draggedSubIndex?.trackIdx === tIdx && draggedSubIndex?.subIdx === sIdx ? 'opacity-40 bg-purple-50 scale-95' : 'opacity-100'}`}
                     >
                       <div className={`w-1.5 h-1.5 rounded-full transition-colors ${selectedSubcategoryId === sub.id ? 'bg-purple-700' : 'bg-slate-300 group-hover:bg-purple-500'}`} />
-                      <span className={`flex-1 text-[11px] font-bold tracking-wide uppercase truncate ${selectedSubcategoryId === sub.id ? 'text-purple-900' : 'group-hover:text-slate-900'}`}>
+                      <span className={`flex-1 text-[11px] font-bold tracking-wide uppercase truncate ${
+                        selectedSubcategoryId === sub.id 
+                          ? (isDarkMode ? 'text-purple-300' : 'text-purple-900') 
+                          : (isDarkMode ? 'group-hover:text-white' : 'group-hover:text-slate-900')
+                      }`}>
                         {sub.title}
                       </span>
                       {isAdmin && (
@@ -375,13 +403,21 @@ const Sidebar: React.FC<SidebarProps> = ({
                         onKeyDown={(e) => e.key === 'Enter' && submitNewSubcategory(track.id)}
                         onBlur={() => submitNewSubcategory(track.id)}
                         placeholder="Subcategory..."
-                        className="w-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest border border-purple-300 rounded focus:outline-none bg-white text-slate-950 shadow-sm"
+                        className={`w-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest border rounded focus:outline-none transition-all shadow-sm ${
+                          isDarkMode 
+                            ? 'bg-slate-800 border-purple-900 text-white focus:border-purple-500' 
+                            : 'bg-white border-purple-300 text-slate-950 focus:border-purple-600'
+                        }`}
                       />
                     </div>
                   ) : (
                     <button
                       onClick={(e) => { e.stopPropagation(); setAddingSubToTrackId(track.id); }}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-[10px] font-black text-purple-600/60 uppercase tracking-widest hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-all"
+                      className={`w-full flex items-center gap-3 px-4 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${
+                        isDarkMode 
+                          ? 'text-purple-400/60 hover:text-purple-400 hover:bg-purple-900/20' 
+                          : 'text-purple-600/60 hover:text-purple-700 hover:bg-purple-50'
+                      }`}
                     >
                       <span className="scale-75">{ICONS.Plus}</span>
                       ADD SUBCATEGORY
@@ -394,13 +430,31 @@ const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </div>
 
-      <div className="mt-auto pt-6 border-t border-slate-100 px-3 pb-4">
+      <div className={`mt-auto pt-6 border-t px-3 pb-4 space-y-4 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+        {/* Theme Toggle - Sidebar */}
+        <button
+          onClick={toggleDarkMode}
+          className={`group relative w-full flex items-center transition-all shadow-xl active:scale-95 ${
+            isOpen ? 'gap-3 px-4 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest' : 'w-12 h-12 rounded-xl mx-auto justify-center'
+          } ${
+            isDarkMode 
+              ? 'bg-slate-800 text-yellow-400 hover:bg-slate-700 shadow-black/40' 
+              : 'bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 shadow-sm'
+          }`}
+        >
+          <span className="shrink-0 scale-110">{isDarkMode ? ICONS.Sun : ICONS.Moon}</span>
+          {isOpen && <span className="font-black uppercase tracking-widest">
+            {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+          </span>}
+        </button>
+
         <button 
           onClick={onLogout}
           title="Logout"
           className={`group relative w-full flex items-center justify-center transition-all shadow-xl active:scale-95 ${
-            isOpen ? 'gap-3 py-4 bg-slate-900 text-white rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-red-600' : 'w-12 h-12 bg-slate-900 text-white rounded-xl mx-auto hover:bg-red-600'
-          }`}
+            isOpen ? 'gap-3 py-4 text-[11px] font-black uppercase tracking-widest hover:bg-red-600' : 'w-12 h-12 mx-auto hover:bg-red-600'
+          } ${isDarkMode ? 'bg-slate-800 text-slate-200' : 'bg-slate-900 text-white rounded-2xl'}`}
+          style={{ borderRadius: isOpen ? '1rem' : '0.75rem' }}
         >
           <span className="shrink-0 scale-110">{ICONS.Back}</span>
           {isOpen && <span className="font-black uppercase tracking-widest">LOG OUT</span>}
