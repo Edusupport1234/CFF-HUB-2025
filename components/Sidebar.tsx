@@ -434,18 +434,33 @@ const Sidebar: React.FC<SidebarProps> = ({
         {/* Theme Toggle - Sidebar */}
         <button
           onClick={toggleDarkMode}
-          className={`group relative w-full flex items-center transition-all shadow-xl active:scale-95 ${
+          className={`group/theme relative w-full flex items-center transition-all shadow-xl active:scale-95 ${
             isOpen ? 'gap-3 px-4 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest' : 'w-12 h-12 rounded-xl mx-auto justify-center'
           } ${
             isDarkMode 
               ? 'bg-slate-800 text-yellow-400 hover:bg-slate-700 shadow-black/40' 
               : 'bg-white border border-slate-100 text-slate-600 hover:bg-slate-50 shadow-sm'
           }`}
+          aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
           <span className="shrink-0 scale-110">{isDarkMode ? ICONS.Sun : ICONS.Moon}</span>
           {isOpen && <span className="font-black uppercase tracking-widest">
             {isDarkMode ? 'Light Mode' : 'Dark Mode'}
           </span>}
+
+          {/* Tooltip for closed sidebar */}
+          {!isOpen && (
+            <div className={`absolute left-16 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover/theme:opacity-100 translate-x-2 group-hover/theme:translate-x-0 transition-all pointer-events-none shadow-xl border z-50 ${
+              isDarkMode 
+                ? 'bg-slate-800 text-white border-slate-700' 
+                : 'bg-white text-slate-900 border-slate-100'
+            }`}>
+              {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+              <div className={`absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 border-l border-b ${
+                isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'
+              }`}></div>
+            </div>
+          )}
         </button>
 
         <button 

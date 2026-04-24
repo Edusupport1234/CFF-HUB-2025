@@ -53,38 +53,25 @@ const LandingPage: React.FC<LandingPageProps> = ({
     setIsLoading(true);
 
     try {
-      if (showLoginModal === 'admin') {
-        // Admin: Firebase Auth
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-
-        if (user.email?.toLowerCase() === 'edusupport@ep-asia.com') {
-          onAdminLoginSuccess();
-          navigate('/admin-dashboard');
-        } else {
-          // If they logged into Firebase but aren't the designated admin
-          await auth.signOut();
-          setError('Authorized admin access only. Your account does not have admin privileges.');
-        }
-      } else if (showLoginModal === 'trainer') {
-        // Trainer: Hardcoded Check
-        if (email === 'trainer@epedu' && password === 'Trainer@EPEDU123') {
-          onTrainerLoginSuccess();
-          navigate('/trainer-dashboard');
-        } else {
-          setError('Invalid trainer credentials. Access denied.');
-        }
+      // 1. Check Hardcoded Trainer Credentials First
+      if (email === 'trainer@epedu' && password === 'Trainer@EPEDU123') {
+        onTrainerLoginSuccess();
+        navigate('/trainer-dashboard');
+        return;
       }
+
+      // 2. Otherwise, attempt Firebase Auth for Admin Access
+      // Any valid Firebase authentication now grants full Admin access
+      await signInWithEmailAndPassword(auth, email, password);
+      
+      onAdminLoginSuccess();
+      navigate('/admin-dashboard');
     } catch (err: any) {
       console.error("Login error:", err);
-      if (showLoginModal === 'admin') {
-        if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
-          setError('Invalid admin credentials. Please check your email and password.');
-        } else {
-          setError('Admin authentication failed. Ensure credentials are correct in Firebase.');
-        }
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
+        setError('Invalid credentials. Please check your username and access key.');
       } else {
-        setError('Login failed. Please check your credentials.');
+        setError('Authentication failed. Please verify your credentials.');
       }
     } finally {
       setIsLoading(false);
@@ -127,7 +114,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
       </p>
       
       <div className={`mt-auto px-4 py-2 sm:px-8 sm:py-3 rounded-[1rem] sm:rounded-2xl text-[8px] sm:text-[11px] font-black uppercase tracking-[0.2em] text-white shadow-lg ${isDarkMode ? 'shadow-black/40' : ''} ${colorClass} group-hover:scale-105 active:scale-95 transition-all duration-300`}>
-        {title === 'Student' ? 'Start Learning' : title === 'Trainer' ? 'Access Hub' : 'Enter Gateway'}
+        {title === 'Student' ? 'Start Learning' : 'Access Hub'}
       </div>
     </motion.div>
   );
@@ -139,19 +126,31 @@ const LandingPage: React.FC<LandingPageProps> = ({
       className={`h-screen h-[100dvh] ${isDarkMode ? 'dark bg-[#0a0b0d] text-white' : 'bg-slate-50 text-slate-900'} flex flex-col items-center justify-start p-4 sm:p-12 pt-16 sm:pt-24 relative overflow-y-auto custom-scrollbar overflow-x-hidden scroll-smooth transition-colors duration-500`}
     >
       {/* Theme Toggle - Top Left */}
-      <div className="absolute top-6 left-6 z-[60]">
+      <div className="absolute top-6 left-6 z-[60] group/theme">
         <button
           onClick={toggleDarkMode}
-          className={`p-3 rounded-2xl shadow-xl border transition-all duration-300 ${
+          className={`p-3 rounded-2xl shadow-xl border transition-all duration-300 active:scale-95 ${
             isDarkMode 
               ? 'bg-slate-800 border-slate-700 text-yellow-400 hover:bg-slate-700 shadow-black/40' 
               : 'bg-white border-slate-100 text-slate-600 hover:bg-slate-50'
           }`}
+          aria-label={isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
         >
           <div className="scale-125">
             {isDarkMode ? ICONS.Sun : ICONS.Moon}
           </div>
         </button>
+        {/* Tooltip */}
+        <div className={`absolute left-16 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover/theme:opacity-100 translate-x-2 group-hover/theme:translate-x-0 transition-all pointer-events-none shadow-xl border ${
+          isDarkMode 
+            ? 'bg-slate-800 text-white border-slate-700' 
+            : 'bg-white text-slate-900 border-slate-100'
+        }`}>
+          {isDarkMode ? 'Light Mode' : 'Dark Mode'}
+          <div className={`absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 border-l border-b ${
+            isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'
+          }`}></div>
+        </div>
       </div>
 
       {/* Back to Top Arrow */}
@@ -202,7 +201,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 animate-in fade-in zoom-in duration-1000 delay-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 max-w-4xl mx-auto animate-in fade-in zoom-in duration-1000 delay-200">
           <RoleCard 
             title="Student"
             description="Access all CFF educational materials immediately."
@@ -216,13 +215,6 @@ const LandingPage: React.FC<LandingPageProps> = ({
             icon={ICONS.Trainer}
             onClick={() => setShowLoginModal('trainer')}
             colorClass={`bg-purple-600 ${isDarkMode ? 'shadow-black/40' : 'shadow-purple-200'}`}
-          />
-          <RoleCard 
-            title="Admin"
-            description="Complete system management and content moderation."
-            icon={ICONS.Shield}
-            onClick={() => setShowLoginModal('admin')}
-            colorClass={`bg-slate-900 ${isDarkMode ? 'shadow-black/40' : 'shadow-slate-200'}`}
           />
         </div>
       </div>
@@ -291,14 +283,14 @@ const LandingPage: React.FC<LandingPageProps> = ({
               <span className="group-hover:-translate-x-1 transition-transform">{ICONS.Back}</span> CLOSE
             </button>
             <div className="flex flex-col items-center mb-10">
-              <div className={`w-16 h-16 ${showLoginModal === 'admin' ? 'bg-slate-900 border border-slate-700' : 'bg-purple-700'} rounded-2xl flex items-center justify-center text-white shadow-xl mb-6`}>
-                {showLoginModal === 'admin' ? ICONS.Shield : ICONS.Trainer}
+              <div className={`w-16 h-16 bg-purple-700 rounded-2xl flex items-center justify-center text-white shadow-xl mb-6`}>
+                {ICONS.Trainer}
               </div>
               <h2 className={`text-3xl font-black uppercase tracking-tighter text-center ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>
-                {showLoginModal === 'admin' ? 'Admin Gateway' : 'Trainer Access'}
+                {showLoginModal === 'trainer' ? 'Secure Access' : 'Admin Gateway'}
               </h2>
               <p className={`text-[11px] font-black uppercase tracking-[0.3em] mt-2 ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>
-                Secure Login
+                Trainer / Admin Login
               </p>
             </div>
 
