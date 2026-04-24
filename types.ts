@@ -50,6 +50,7 @@ export interface LearningTrack {
   subtitle: string;
   icon: string;
   subcategories?: Subcategory[];
+  audience?: 'all' | 'trainer' | 'student';
 }
 
 export type ViewState = 'home' | 'editor' | 'admin' | 'viewer';

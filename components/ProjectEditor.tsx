@@ -1,12 +1,12 @@
 
 import React, { useState, useRef } from 'react';
-import { Project, LearningTrack, ProjectStatus, Section, ContentBlock } from '../types';
+import { Project, LearningTrack, Subcategory, ProjectStatus, Section, ContentBlock } from '../types';
 import { ICONS } from '../constants';
 import VideoPlayer from './VideoPlayer';
 
 interface ProjectEditorProps {
   project: Project;
-  onSave: (updated: Project) => void;
+  onSave: (updated: Project, newTrack?: LearningTrack, newSubcategory?: { trackId: string, sub: Subcategory }) => void;
   onBack: () => void;
   tracks: LearningTrack[];
   isDarkMode?: boolean;
@@ -19,6 +19,15 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
   const [subcategoryId, setSubcategoryId] = useState(project.subcategoryId || '');
   const [audience, setAudience] = useState<'all' | 'trainer' | 'student'>(project.audience || 'all');
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // New Track/Subcategory state
+  const [isAddingNewTrack, setIsAddingNewTrack] = useState(false);
+  const [newTrackTitle, setNewTrackTitle] = useState('');
+  const [newTrackSubtitle, setNewTrackSubtitle] = useState('');
+  const [newTrackAudience, setNewTrackAudience] = useState<'all' | 'trainer' | 'student'>('all');
+  
+  const [isAddingNewSub, setIsAddingNewSub] = useState(false);
+  const [newSubTitle, setNewSubTitle] = useState('');
   
   // Extract initial values from existing project structure if they exist
   const initialVideo = project.sections?.[0]?.blocks?.find(b => b && b.type === 'video')?.content || '';
@@ -36,12 +45,57 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
     if (!description.trim()) newErrors.description = 'Description is required';
     if (!thumbnail) newErrors.thumbnail = 'Thumbnail is required';
 
+    if (isAddingNewTrack) {
+      if (!newTrackTitle.trim()) newErrors.newTrackTitle = 'Track title is required';
+    } else if (!trackId) {
+      newErrors.trackId = 'Track selection is required';
+    }
+
+    if (isAddingNewSub) {
+      if (!newSubTitle.trim()) newErrors.newSubTitle = 'Subcategory title is required';
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
 
     setErrors({});
+    
+    let finalTrackId = trackId;
+    let finalSubId = subcategoryId || null;
+    let createdTrack: LearningTrack | undefined;
+    let createdSub: { trackId: string, sub: Subcategory } | undefined;
+
+    if (isAddingNewTrack) {
+      finalTrackId = `track-${Math.random().toString(36).substr(2, 5)}`;
+      createdTrack = {
+        id: finalTrackId,
+        title: newTrackTitle.trim(),
+        subtitle: newTrackSubtitle.trim() || 'NEW TRACK',
+        icon: '📚',
+        subcategories: [],
+        audience: newTrackAudience
+      };
+      
+      if (isAddingNewSub) {
+        finalSubId = `sub-${Math.random().toString(36).substr(2, 5)}`;
+        createdTrack.subcategories = [{
+          id: finalSubId,
+          title: newSubTitle.trim()
+        }];
+      }
+    } else if (isAddingNewSub && trackId) {
+      finalSubId = `sub-${Math.random().toString(36).substr(2, 5)}`;
+      createdSub = {
+        trackId,
+        sub: {
+          id: finalSubId,
+          title: newSubTitle.trim()
+        }
+      };
+    }
+
     // Construct the sections array to match the expected format for ProjectViewer
     const blocks: ContentBlock[] = [];
     
@@ -73,14 +127,14 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
     onSave({ 
       ...project, 
       title, 
-      trackId, 
-      subcategoryId: subcategoryId || null,
+      trackId: finalTrackId, 
+      subcategoryId: finalSubId,
       sections: [simpleSection], 
       thumbnail, 
       status: ProjectStatus.PUBLISHED, 
-      lastEdited: 'Just now',
+      lastEdited: Date.now(), // Fixed to use actual timestamp
       audience
-    });
+    }, createdTrack, createdSub);
   };
 
   const currentTrack = tracks.find(t => t.id === trackId);
@@ -156,38 +210,122 @@ const ProjectEditor: React.FC<ProjectEditorProps> = ({ project, onSave, onBack, 
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-              <div className="space-y-2">
-                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Target Track</label>
-                <select 
-                  value={trackId}
-                  onChange={(e) => {
-                    setTrackId(e.target.value);
-                    setSubcategoryId('');
-                  }}
-                  className={`w-full px-6 py-4 border-2 rounded-2xl text-[14px] font-bold focus:outline-none transition-all appearance-none ${
-                    isDarkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-purple-500' : 'bg-slate-50 border-slate-100 text-slate-950 focus:border-purple-600'
-                  }`}
-                >
-                  {tracks.map(t => (
-                    <option key={t.id} value={t.id}>{t.title}</option>
-                  ))}
-                </select>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Target Track</label>
+                  <select 
+                    value={isAddingNewTrack ? "add-new" : trackId}
+                    onChange={(e) => {
+                      if (e.target.value === "add-new") {
+                        setIsAddingNewTrack(true);
+                      } else {
+                        setIsAddingNewTrack(false);
+                        setTrackId(e.target.value);
+                      }
+                      setSubcategoryId('');
+                      setIsAddingNewSub(false);
+                    }}
+                    className={`w-full px-6 py-4 border-2 rounded-2xl text-[14px] font-bold focus:outline-none transition-all appearance-none ${
+                      isDarkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-purple-500' : 'bg-slate-50 border-slate-100 text-slate-950 focus:border-purple-600'
+                    }`}
+                  >
+                    {!isAddingNewTrack && <option value="">Select a track...</option>}
+                    {tracks.map(t => (
+                      <option key={t.id} value={t.id}>{t.title}</option>
+                    ))}
+                    <option value="add-new" className="text-purple-600 font-black">+ Add New Track...</option>
+                  </select>
+                </div>
+                
+                {isAddingNewTrack && (
+                  <div className="space-y-4 p-6 rounded-2xl border-2 border-purple-500/30 bg-purple-50/5 animate-slide-up">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-purple-600 uppercase tracking-widest">New Track Title</label>
+                      <input 
+                        value={newTrackTitle}
+                        onChange={e => setNewTrackTitle(e.target.value)}
+                        placeholder="e.g., ADVANCED AI 2027"
+                        className={`w-full px-4 py-3 border-2 rounded-xl text-xs font-bold focus:outline-none ${
+                          isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-white border-slate-200'
+                        }`}
+                      />
+                      {errors.newTrackTitle && <p className="text-[9px] font-black text-red-500 uppercase tracking-widest">{errors.newTrackTitle}</p>}
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-purple-600 uppercase tracking-widest">New Track Subtitle</label>
+                      <input 
+                        value={newTrackSubtitle}
+                        onChange={e => setNewTrackSubtitle(e.target.value)}
+                        placeholder="e.g., THE FUTURE OF INTELLIGENCE"
+                        className={`w-full px-4 py-3 border-2 rounded-xl text-xs font-bold focus:outline-none ${
+                          isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-white border-slate-200'
+                        }`}
+                      />
+                    </div>
+                    <div className="space-y-4">
+                      <label className="text-[10px] font-black text-purple-600 uppercase tracking-widest block">Track Audience</label>
+                      <div className="flex gap-2">
+                        {['all', 'trainer'].map((v) => (
+                          <button
+                            key={v}
+                            type="button"
+                            onClick={() => setNewTrackAudience(v as any)}
+                            className={`flex-1 py-2 px-3 rounded-xl border-2 text-[10px] font-black uppercase tracking-widest transition-all ${
+                              newTrackAudience === v
+                                ? 'bg-purple-600 border-purple-600 text-white'
+                                : (isDarkMode ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500')
+                            }`}
+                          >
+                            {v === 'all' ? 'Public' : 'Trainers Only'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Subcategory</label>
-                <select 
-                  value={subcategoryId}
-                  onChange={(e) => setSubcategoryId(e.target.value)}
-                  className={`w-full px-6 py-4 border-2 rounded-2xl text-[14px] font-bold focus:outline-none transition-all appearance-none ${
-                    isDarkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-purple-500' : 'bg-slate-50 border-slate-100 text-slate-950 focus:border-purple-600'
-                  }`}
-                >
-                  <option value="">No Subcategory</option>
-                  {currentTrack?.subcategories?.map(s => (
-                    <option key={s.id} value={s.id}>{s.title}</option>
-                  ))}
-                </select>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest">Subcategory</label>
+                  <select 
+                    value={isAddingNewSub ? "add-new" : subcategoryId}
+                    onChange={(e) => {
+                      if (e.target.value === "add-new") {
+                        setIsAddingNewSub(true);
+                      } else {
+                        setIsAddingNewSub(false);
+                        setSubcategoryId(e.target.value);
+                      }
+                    }}
+                    className={`w-full px-6 py-4 border-2 rounded-2xl text-[14px] font-bold focus:outline-none transition-all appearance-none ${
+                      isDarkMode ? 'bg-slate-800 border-slate-700 text-white focus:border-purple-500' : 'bg-slate-50 border-slate-100 text-slate-950 focus:border-purple-600'
+                    }`}
+                  >
+                    {!isAddingNewSub && <option value="">{isAddingNewTrack ? "Select Track First" : "No Subcategory"}</option>}
+                    {!isAddingNewTrack && currentTrack?.subcategories?.map(s => (
+                      <option key={s.id} value={s.id}>{s.title}</option>
+                    ))}
+                    <option value="add-new" className="text-purple-600 font-black">
+                      {isAddingNewTrack ? "+ Add Sub-cat to New Track..." : "+ Add New Subcategory..."}
+                    </option>
+                  </select>
+                </div>
+
+                {isAddingNewSub && (
+                  <div className="space-y-2 p-6 rounded-2xl border-2 border-purple-500/30 bg-purple-50/5 animate-slide-up">
+                    <label className="text-[10px] font-black text-purple-600 uppercase tracking-widest">New Subcategory Title</label>
+                    <input 
+                      value={newSubTitle}
+                      onChange={e => setNewSubTitle(e.target.value)}
+                      placeholder="e.g., ADVANCED SENSORS"
+                      className={`w-full px-4 py-3 border-2 rounded-xl text-xs font-bold focus:outline-none ${
+                        isDarkMode ? 'bg-slate-950 border-slate-700 text-white' : 'bg-white border-slate-200'
+                      }`}
+                    />
+                    {errors.newSubTitle && <p className="text-[9px] font-black text-red-500 uppercase tracking-widest">{errors.newSubTitle}</p>}
+                  </div>
+                )}
               </div>
             </div>
 

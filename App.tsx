@@ -6,7 +6,7 @@ import Sidebar from './components/Sidebar';
 import ProjectEditor from './components/ProjectEditor';
 import ProjectViewer from './components/ProjectViewer';
 import { ICONS, DEFAULT_TRACKS } from './constants';
-import { ViewState, Project, LearningTrack, ProjectStatus } from './types';
+import { ViewState, Project, LearningTrack, Subcategory, ProjectStatus } from './types';
 import { db, auth } from './firebase';
 import { ref, onValue, set } from 'firebase/database';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -360,7 +360,29 @@ const App: React.FC = () => {
     setCurrentView('editor');
   };
 
-  const handleSaveProject = (updated: Project) => {
+  const handleSaveProject = (updated: Project, newTrack?: LearningTrack, newSubcategory?: { trackId: string, sub: Subcategory }) => {
+    // 1. Handle New Track if created
+    if (newTrack) {
+      const updatedTracks = [...tracks, newTrack];
+      setTracks(updatedTracks);
+      set(ref(db, 'tracks'), JSON.parse(JSON.stringify(updatedTracks)));
+    } 
+    // 2. Handle New Subcategory if created for an existing track
+    else if (newSubcategory) {
+      const updatedTracks = tracks.map(t => {
+        if (t.id === newSubcategory.trackId) {
+          return {
+            ...t,
+            subcategories: [...(t.subcategories || []), newSubcategory.sub]
+          };
+        }
+        return t;
+      });
+      setTracks(updatedTracks);
+      set(ref(db, 'tracks'), JSON.parse(JSON.stringify(updatedTracks)));
+    }
+
+    // 3. Handle Project Saving
     const projectWithTime = { ...updated, lastEdited: Date.now() };
     const newProjects = projects.find(p => p.id === projectWithTime.id)
       ? projects.map(p => (p.id === projectWithTime.id ? projectWithTime : p))
@@ -481,7 +503,10 @@ const App: React.FC = () => {
     const canEdit = role === 'admin';
 
     const displayTracks = role === 'student' 
-      ? tracks.filter(t => !t.id.startsWith('trainer-') && !t.title.toUpperCase().startsWith('TRAINER:'))
+      ? tracks.filter(t => {
+          const isTrainerTrack = t.audience === 'trainer' || t.id.startsWith('trainer-') || t.title.toUpperCase().startsWith('TRAINER:');
+          return !isTrainerTrack;
+        })
       : tracks;
 
     const displayProjects = projects.filter(p => {
@@ -489,7 +514,7 @@ const App: React.FC = () => {
       
       if (role === 'student') {
         const track = tracks.find(t => t.id === p.trackId);
-        const isTrainerTrack = track && (track.id.startsWith('trainer-') || track.title.toUpperCase().startsWith('TRAINER:'));
+        const isTrainerTrack = track && (track.audience === 'trainer' || track.id.startsWith('trainer-') || track.title.toUpperCase().startsWith('TRAINER:'));
         return audienceAllowed && !isTrainerTrack;
       }
       
