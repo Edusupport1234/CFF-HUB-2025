@@ -141,8 +141,24 @@ const App: React.FC = () => {
                 hasChanges = true;
             }
 
+            // Deduplicate subcategories to prevent "Servo Motor" or others appearing twice
+            // caused by merging code constants with potentially redundant database entries
+            const seenIds = new Set<string>();
+            const seenTitles = new Set<string>();
+            const deduplicatedSubs = currentSubs.filter(sub => {
+              const titleKey = sub.title.toLowerCase().trim();
+              if (seenIds.has(sub.id) || seenTitles.has(titleKey)) {
+                hasChanges = true;
+                return false;
+              }
+              seenIds.add(sub.id);
+              seenTitles.add(titleKey);
+              return true;
+            });
+            currentSubs = deduplicatedSubs;
+
             const missingSubs = (dt.subcategories || []).filter(
-              ds => !currentSubs.find((cs: any) => cs.id === ds.id)
+              ds => !currentSubs.find((cs: any) => cs.id === ds.id || cs.title.toLowerCase().trim() === ds.title.toLowerCase().trim())
             );
             
             if (missingSubs.length > 0) {
@@ -152,7 +168,7 @@ const App: React.FC = () => {
               };
               hasChanges = true;
             } else if (hasChanges) {
-               // Update the track with the cleaned subcategories even if nothing was missing
+               // Update the track with the cleaned/deduplicated subcategories
                updatedTracks[existingIdx] = {
                 ...existingTrack,
                 subcategories: currentSubs
@@ -231,11 +247,9 @@ const App: React.FC = () => {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Only Admin uses Firebase Auth state for automated login persistence
-        if (user.email?.toLowerCase() === 'edusupport@ep-asia.com') {
-          setIsAuthenticated(true);
-          setIsViewerAuthenticated(true);
-        }
+        // Any user successfully authenticated via Firebase is treated as an Admin
+        setIsAuthenticated(true);
+        setIsViewerAuthenticated(true);
       } else {
         // If Firebase Auth is cleared, we only automatically clear the Admin state.
         // We leave isViewerAuthenticated alone to allow the hardcoded Trainer session to persist independently
