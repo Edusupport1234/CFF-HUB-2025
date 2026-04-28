@@ -93,7 +93,6 @@ const App: React.FC = () => {
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [savedScrollPosition, setSavedScrollPosition] = useState(0);
   const [watchHistory, setWatchHistory] = useState<string[]>([]);
-  const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
   const mainContentRef = React.useRef<HTMLElement>(null);
   
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
@@ -457,67 +456,6 @@ const App: React.FC = () => {
     return p.thumbnail;
   };
 
-  const getProjectVideoUrl = (p: Project) => {
-    return (p.sections || [])
-      .flatMap(section => section?.blocks || [])
-      .find(block => block && block.type === 'video' && block.content)?.content;
-  };
-
-  const getYouTubeID = (url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=|shorts\/)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    return (match && (match[2].length === 11)) ? match[2] : null;
-  };
-
-  const getVimeoID = (url: string) => {
-    const match = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
-    return match ? match[1] : null;
-  };
-
-  const renderVideoPreview = (videoUrl: string | undefined, isHovered: boolean) => {
-    if (!videoUrl || !isHovered) return null;
-
-    const youtubeId = getYouTubeID(videoUrl);
-    if (youtubeId) {
-      return (
-        <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden bg-black">
-          <iframe
-            src={`https://www.youtube.com/embed/${youtubeId}?autoplay=1&mute=1&loop=1&playlist=${youtubeId}&controls=0&modestbranding=1&rel=0`}
-            className="absolute top-1/2 left-1/2 w-full h-full -translate-x-1/2 -translate-y-1/2 scale-[1.35] object-cover"
-            allow="autoplay; encrypted-media"
-            style={{ border: 'none' }}
-          />
-        </div>
-      );
-    }
-
-    const vimeoId = getVimeoID(videoUrl);
-    if (vimeoId) {
-      return (
-        <div className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden bg-black">
-          <iframe
-            src={`https://player.vimeo.com/video/${vimeoId}?autoplay=1&muted=1&background=1&autopause=0&loop=1&quality=360p`}
-            className="absolute top-1/2 left-1/2 w-full h-full -translate-x-1/2 -translate-y-1/2 scale-[1.35] object-cover"
-            allow="autoplay; fullscreen"
-            style={{ border: 'none' }}
-          />
-        </div>
-      );
-    }
-
-    // Direct video link
-    return (
-      <video
-        src={videoUrl}
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-      />
-    );
-  };
-
   const handleCreateProject = (trackId?: string, subcategoryId?: string) => {
     if (!isAuthenticated) return;
     if (mainContentRef.current) {
@@ -794,8 +732,6 @@ const App: React.FC = () => {
                           opacity: { duration: 0.1, delay: 0.1 }
                         } 
                       }}
-                      onMouseEnter={() => setHoveredProjectId(p.id)}
-                      onMouseLeave={() => setHoveredProjectId(null)}
                       onClick={() => handleProjectClick(p)}
                       className={`group relative rounded-[2rem] p-6 border-2 transition-all cursor-pointer hover:scale-[1.03] active:scale-[0.98] ${
                         isDarkMode 
@@ -823,9 +759,8 @@ const App: React.FC = () => {
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                         </button>
                       </div>
-                      <div className={`p-4 rounded-2xl mb-6 text-[11px] font-bold leading-relaxed line-clamp-2 ${isDarkMode ? 'bg-slate-900 text-slate-400' : 'bg-slate-50 text-slate-500'} relative overflow-hidden`}>
-                        {renderVideoPreview(getProjectVideoUrl(p), hoveredProjectId === p.id)}
-                        <span className="relative z-10">{p.subtitle}</span>
+                      <div className={`p-4 rounded-2xl mb-6 text-[11px] font-bold leading-relaxed line-clamp-2 ${isDarkMode ? 'bg-slate-900 text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
+                        {p.subtitle}
                       </div>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -929,16 +864,11 @@ const App: React.FC = () => {
 
     const renderProjectCard = (project: Project) => {
       const displayImg = getProjectDisplayThumbnail(project);
-      const videoUrl = getProjectVideoUrl(project);
       const isDragging = draggedProjectId === project.id;
-      const isHovered = hoveredProjectId === project.id;
-      
       return (
         <div 
           key={project.id}
           draggable={canEdit}
-          onMouseEnter={() => setHoveredProjectId(project.id)}
-          onMouseLeave={() => setHoveredProjectId(null)}
           onDragStart={(e) => onProjectDragStart(e, project.id)}
           onDragOver={(e) => onProjectDragOver(e, project.id)}
           onDragEnd={onProjectDragEnd}
@@ -957,16 +887,10 @@ const App: React.FC = () => {
             <img 
               src={displayImg} 
               alt={project.title}
-              className={`w-full h-full object-cover transition-all duration-700 ${isHovered ? 'opacity-0 scale-110' : 'opacity-100 scale-100'}`}
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
             />
-            
-            {/* Video Preview Overlay */}
-            <div className={`absolute inset-0 transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`}>
-              {renderVideoPreview(videoUrl, isHovered)}
-            </div>
-
-            <div className="absolute inset-0 bg-slate-950/0 group-hover:bg-purple-950/20 transition-all duration-500" />
-            <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-500 ${isHovered ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
+            <div className="absolute inset-0 bg-slate-950/0 group-hover:bg-purple-950/40 transition-all duration-500" />
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
                <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-purple-700 shadow-2xl scale-75 group-hover:scale-100 transition-transform duration-500">
                  <div className="scale-110">{ICONS.Play}</div>
                </div>
