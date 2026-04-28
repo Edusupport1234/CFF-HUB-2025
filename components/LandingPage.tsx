@@ -1,10 +1,11 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../firebase';
 import { ICONS } from '../constants';
+import LoadingScreen from './LoadingScreen';
 
 interface LandingPageProps {
   onAdminLoginSuccess: () => void;
@@ -120,11 +121,18 @@ const LandingPage: React.FC<LandingPageProps> = ({
   );
 
   return (
-    <div 
+    <motion.div 
+      initial={{ opacity: 0, x: -20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 20 }}
+      transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
       ref={scrollRef}
       onScroll={handleScroll}
       className={`h-screen h-[100dvh] ${isDarkMode ? 'dark bg-[#0a0b0d] text-white' : 'bg-slate-50 text-slate-900'} flex flex-col items-center justify-start p-4 sm:p-12 pt-16 sm:pt-24 relative overflow-y-auto custom-scrollbar overflow-x-hidden scroll-smooth transition-colors duration-500`}
     >
+      <AnimatePresence mode="wait">
+        {isLoading && <LoadingScreen isDarkMode={isDarkMode} key="loading" />}
+      </AnimatePresence>
       {/* Theme Toggle - Top Left */}
       <div className="absolute top-6 left-6 z-[60] group/theme">
         <button
@@ -350,7 +358,7 @@ const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 

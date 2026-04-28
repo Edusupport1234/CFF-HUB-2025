@@ -53,4 +53,4 @@ export interface LearningTrack {
   audience?: 'all' | 'trainer' | 'student';
 }
 
-export type ViewState = 'home' | 'editor' | 'admin' | 'viewer';
+export type ViewState = 'home' | 'editor' | 'admin' | 'viewer' | 'history';

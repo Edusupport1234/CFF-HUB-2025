@@ -1,13 +1,15 @@
 
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import Sidebar from './components/Sidebar';
 import ProjectEditor from './components/ProjectEditor';
 import ProjectViewer from './components/ProjectViewer';
+import LoadingScreen from './components/LoadingScreen';
 import { ICONS, DEFAULT_TRACKS } from './constants';
 import { ViewState, Project, LearningTrack, Subcategory, ProjectStatus } from './types';
 import { db, auth } from './firebase';
+import { AnimatePresence, motion } from 'motion/react';
 import { ref, onValue, set } from 'firebase/database';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 
@@ -87,7 +89,10 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
+  const [lastView, setLastView] = useState<ViewState>('home');
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [savedScrollPosition, setSavedScrollPosition] = useState(0);
+  const [watchHistory, setWatchHistory] = useState<string[]>([]);
   const mainContentRef = React.useRef<HTMLElement>(null);
   
   const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
@@ -106,6 +111,85 @@ const App: React.FC = () => {
     message: '',
     onConfirm: () => {},
   });
+
+  // Undo State
+  const [undoAction, setUndoAction] = useState<{
+    type: 'PROJECT' | 'TRACK' | 'SUBCATEGORY';
+    data: any;
+    trackId?: string; // For subcategory
+    message: string;
+  } | null>(null);
+
+  const triggerUndo = () => {
+    if (!undoAction) return;
+
+    if (undoAction.type === 'PROJECT') {
+      const restoredProject = undoAction.data as Project;
+      const newProjects = [restoredProject, ...projects];
+      setProjects(newProjects);
+      set(ref(db, 'projects'), JSON.parse(JSON.stringify(newProjects)));
+    } 
+    else if (undoAction.type === 'TRACK') {
+      const restoredTrack = undoAction.data as LearningTrack;
+      const newTracks = [...tracks, restoredTrack];
+      handleTracksReorder(newTracks);
+    }
+    else if (undoAction.type === 'SUBCATEGORY') {
+      const restoredSub = undoAction.data as Subcategory;
+      const targetTrackId = undoAction.trackId;
+      const newTracks = tracks.map(t => {
+        if (t.id === targetTrackId) {
+          return {
+            ...t,
+            subcategories: [...(t.subcategories || []), restoredSub]
+          };
+        }
+        return t;
+      });
+      handleTracksReorder(newTracks);
+    }
+
+    setUndoAction(null);
+  };
+
+  useEffect(() => {
+    if ((currentView === 'home' || currentView === 'history') && savedScrollPosition > 0) {
+      let attempts = 0;
+      const restoreScroll = () => {
+        if (mainContentRef.current) {
+          mainContentRef.current.scrollTo({
+            top: savedScrollPosition,
+            behavior: 'auto'
+          });
+          
+          // Verify if it stuck. If not, content might still be loading or rendering
+          const currentPos = mainContentRef.current.scrollTop;
+          if (Math.abs(currentPos - savedScrollPosition) < 2 || attempts > 15) {
+            setSavedScrollPosition(0);
+          } else {
+            attempts++;
+            setTimeout(restoreScroll, 50);
+          }
+        } else if (attempts < 20) {
+          attempts++;
+          setTimeout(restoreScroll, 50);
+        }
+      };
+
+      // Wait for the exit animation of ProjectViewer or Editor (approx 500ms)
+      const timeoutId = setTimeout(restoreScroll, 550);
+      return () => clearTimeout(timeoutId);
+    }
+  }, [currentView, savedScrollPosition]);
+
+  useEffect(() => {
+    if (undoAction) {
+      const timer = setTimeout(() => {
+        setUndoAction(null);
+      }, 10000); // 10 seconds to undo
+      return () => clearTimeout(timer);
+    }
+  }, [undoAction]);
 
   // Sync Tracks with Firebase
   useEffect(() => {
@@ -259,6 +343,35 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  // Sync Watch History
+  useEffect(() => {
+    const saved = localStorage.getItem('watch_history');
+    if (saved) {
+      try {
+        setWatchHistory(JSON.parse(saved));
+      } catch (e) {
+        console.error("Failed to parse history", e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('watch_history', JSON.stringify(watchHistory));
+  }, [watchHistory]);
+
+  const addToHistory = (projectId: string) => {
+    setWatchHistory(prev => {
+      // Remove if already exists and prepend to make it most recent
+      const filtered = prev.filter(id => id !== projectId);
+      return [projectId, ...filtered].slice(0, 50); // Keep last 50
+    });
+  };
+
+  const removeFromHistory = (e: React.MouseEvent, projectId: string) => {
+    e.stopPropagation();
+    setWatchHistory(prev => prev.filter(id => id !== projectId));
+  };
+
   const handleTracksReorder = (newTracks: LearningTrack[]) => {
     setTracks(newTracks);
     // Remove undefined values before saving to Firebase
@@ -345,6 +458,9 @@ const App: React.FC = () => {
 
   const handleCreateProject = (trackId?: string, subcategoryId?: string) => {
     if (!isAuthenticated) return;
+    if (mainContentRef.current) {
+      setSavedScrollPosition(mainContentRef.current.scrollTop);
+    }
     const newProject: Project = {
       id: Math.random().toString(36).substr(2, 9),
       title: 'New Tutorial Title',
@@ -389,6 +505,7 @@ const App: React.FC = () => {
       : [projectWithTime, ...projects];
     
     setProjects(newProjects);
+    setIsLoading(true);
     // Remove undefined values before saving to Firebase
     const cleanedProjects = JSON.parse(JSON.stringify(newProjects));
     set(ref(db, 'projects'), cleanedProjects);
@@ -398,6 +515,11 @@ const App: React.FC = () => {
   };
 
   const handleProjectClick = (p: Project) => {
+    if (mainContentRef.current) {
+      setSavedScrollPosition(mainContentRef.current.scrollTop);
+    }
+    setLastView(currentView);
+    addToHistory(p.id);
     setSelectedProject(p);
     setCurrentView('viewer');
   };
@@ -413,10 +535,20 @@ const App: React.FC = () => {
       confirmText: 'Delete Tutorial',
       isDestructive: true,
       onConfirm: () => {
+        setIsLoading(true);
+        const projectToDelete = projects.find(p => p.id === projectId);
         const newProjects = projects.filter(p => p.id !== projectId);
         setProjects(newProjects);
         const cleanedProjects = JSON.parse(JSON.stringify(newProjects));
         set(ref(db, 'projects'), cleanedProjects);
+        
+        if (projectToDelete) {
+          setUndoAction({
+            type: 'PROJECT',
+            data: projectToDelete,
+            message: `Deleted "${projectToDelete.title}"`
+          });
+        }
         
         if (selectedProject?.id === projectId) {
           setSelectedProject(null);
@@ -437,8 +569,19 @@ const App: React.FC = () => {
       confirmText: 'Delete Track',
       isDestructive: true,
       onConfirm: () => {
+        setIsLoading(true);
+        const trackToDelete = tracks.find(t => t.id === trackId);
         const newTracks = tracks.filter(t => t.id !== trackId);
         handleTracksReorder(newTracks);
+        
+        if (trackToDelete) {
+          setUndoAction({
+            type: 'TRACK',
+            data: trackToDelete,
+            message: `Deleted track "${trackToDelete.title}"`
+          });
+        }
+
         if (selectedTrackId === trackId) {
           setSelectedTrackId(null);
           setSelectedSubcategoryId(null);
@@ -458,6 +601,9 @@ const App: React.FC = () => {
       confirmText: 'Delete Subcategory',
       isDestructive: true,
       onConfirm: () => {
+        const track = tracks.find(t => t.id === trackId);
+        const subToDelete = track?.subcategories?.find(s => s.id === subId);
+        
         const newTracks = tracks.map(t => {
           if (t.id === trackId) {
             return { ...t, subcategories: t.subcategories?.filter(s => s.id !== subId) };
@@ -465,6 +611,16 @@ const App: React.FC = () => {
           return t;
         });
         handleTracksReorder(newTracks);
+
+        if (subToDelete) {
+          setUndoAction({
+            type: 'SUBCATEGORY',
+            trackId,
+            data: subToDelete,
+            message: `Deleted subcategory "${subToDelete.title}"`
+          });
+        }
+
         if (selectedSubcategoryId === subId) setSelectedSubcategoryId(null);
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
       }
@@ -496,6 +652,151 @@ const App: React.FC = () => {
     // Persist the final order after dragging ends
     const cleanedProjects = JSON.parse(JSON.stringify(projects));
     set(ref(db, 'projects'), cleanedProjects);
+  };
+
+  const renderMobileHeader = () => (
+    <div className={`md:hidden flex items-center justify-between mb-8 p-4 rounded-2xl border-2 shadow-sm ${
+      isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+    }`}>
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 bg-purple-700 rounded-lg flex items-center justify-center text-white">
+          <div className="w-4 h-4 border-2 border-white rounded flex items-center justify-center">
+            <div className="w-1 h-1 bg-white rounded-full"></div>
+          </div>
+        </div>
+        <span className={`text-xs font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>CFF HUB</span>
+      </div>
+      <button 
+        onClick={() => setIsSidebarOpen(true)}
+        className={`p-2 rounded-xl ${isDarkMode ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-900'}`}
+      >
+        {ICONS.Menu}
+      </button>
+    </div>
+  );
+
+  const renderHistoryView = () => {
+    const historyProjects = watchHistory
+      .map(id => projects.find(p => p.id === id))
+      .filter((p): p is Project => !!p);
+
+    return (
+      <main ref={mainContentRef} onScroll={handleMainScroll} className="flex-1 overflow-y-auto px-6 sm:px-12 py-10 custom-scrollbar relative h-screen">
+        {renderMobileHeader()}
+        <header className="mb-16">
+          <h1 className={`text-4xl font-black uppercase tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+            Watch History
+          </h1>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">
+            Tutorials you've recently viewed
+          </p>
+        </header>
+
+        <AnimatePresence mode="wait">
+          {historyProjects.length === 0 ? (
+            <motion.div 
+              key="empty-history"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 0.3, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="flex flex-col items-center justify-center py-20 gap-6"
+            >
+              <div className="w-20 h-20 rounded-full border-4 border-dashed border-slate-400 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+              </div>
+              <p className="text-[11px] font-black uppercase tracking-widest text-slate-400">Your history is empty</p>
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="history-grid"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
+            >
+              <AnimatePresence mode="popLayout">
+                {historyProjects.map((p) => {
+                  const track = tracks.find(t => t.id === p.trackId);
+                  return (
+                    <motion.div 
+                      layout
+                      key={p.id}
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ 
+                        scale: [1, 1.1, 0],
+                        opacity: [1, 1, 0],
+                        transition: { 
+                          duration: 0.25, 
+                          ease: [0.175, 0.885, 0.32, 1.275],
+                          opacity: { duration: 0.1, delay: 0.1 }
+                        } 
+                      }}
+                      onClick={() => handleProjectClick(p)}
+                      className={`group relative rounded-[2rem] p-6 border-2 transition-all cursor-pointer hover:scale-[1.03] active:scale-[0.98] ${
+                        isDarkMode 
+                          ? 'bg-[#1a1c26] border-slate-800 hover:border-purple-500/50' 
+                          : 'bg-white border-slate-100 hover:border-purple-400'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4 mb-6">
+                        <div className="w-12 h-12 rounded-2xl bg-purple-600/10 text-purple-500 flex items-center justify-center text-xl">
+                          {track?.icon || '📦'}
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest block mb-1">
+                            {track?.title || 'Unknown Track'}
+                          </span>
+                          <h3 className={`text-[13px] font-black uppercase tracking-tight leading-tight group-hover:text-purple-600 transition-colors ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{p.title}</h3>
+                        </div>
+                        <button
+                          onClick={(e) => removeFromHistory(e, p.id)}
+                          className={`p-2 rounded-xl transition-all ${
+                            isDarkMode ? 'hover:bg-red-900/20 text-slate-500 hover:text-red-400' : 'hover:bg-red-50 text-slate-400 hover:text-red-500'
+                          }`}
+                          title="Remove from history"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                        </button>
+                      </div>
+                      <div className={`p-4 rounded-2xl mb-6 text-[11px] font-bold leading-relaxed line-clamp-2 ${isDarkMode ? 'bg-slate-900 text-slate-400' : 'bg-slate-50 text-slate-500'}`}>
+                        {p.subtitle}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                           <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                             isDarkMode ? 'bg-slate-800 text-slate-400' : 'bg-slate-100 text-slate-500'
+                           }`}>
+                             Tutorial
+                           </span>
+                        </div>
+                        <div className="text-purple-600 flex items-center gap-2 group-hover:gap-3 transition-all">
+                          <span className="text-[10px] font-black uppercase tracking-widest">Re-watch</span>
+                          {ICONS.ChevronRight}
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        
+        <div className="mt-16 pt-10 border-t border-slate-800/10">
+          <button 
+            onClick={() => setWatchHistory([])}
+            className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 transition-all ${
+              isDarkMode 
+                ? 'bg-red-900/10 border-red-900/30 text-red-400 hover:bg-red-900/20' 
+                : 'bg-red-50 border-red-100 text-red-600 hover:bg-red-100'
+            }`}
+          >
+            Clear History
+          </button>
+        </div>
+      </main>
+    );
   };
 
   const renderMainHub = (role: 'student' | 'trainer' | 'admin') => {
@@ -653,7 +954,13 @@ const App: React.FC = () => {
     };
 
     return (
-      <div className={`flex h-screen overflow-hidden relative flex-col md:flex-row transition-colors duration-500 ${isDarkMode ? 'dark bg-[#0a0b0d]' : 'bg-slate-100'}`}>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.98 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 1.02, filter: 'blur(10px)' }}
+        transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+        className={`flex h-screen overflow-hidden relative flex-col md:flex-row transition-colors duration-500 ${isDarkMode ? 'dark bg-[#0a0b0d]' : 'bg-slate-50'}`}
+      >
         {/* Confirmation Modal */}
         {confirmModal.isOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-6 bg-slate-950/60 backdrop-blur-sm animate-in fade-in duration-300">
@@ -681,216 +988,270 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {currentView === 'editor' && selectedProject ? (
-          <div className="flex-1 h-full overflow-hidden">
-            <ProjectEditor 
-              project={selectedProject} 
-              tracks={tracks} 
-              onSave={handleSaveProject} 
-              onBack={() => { setCurrentView('home'); setSelectedProject(null); }} 
-              isDarkMode={isDarkMode}
-            />
-          </div>
-        ) : currentView === 'viewer' && selectedProject ? (
-          <div className="flex-1 h-full overflow-hidden">
-            <ProjectViewer 
-              project={selectedProject}
-              track={tracks.find(t => t.id === selectedProject.trackId)}
-              onBack={() => { setCurrentView('home'); setSelectedProject(null); }}
-              onEdit={() => setCurrentView('editor')}
-              onDelete={(e) => handleDeleteProject(e, selectedProject.id)}
-              isAdmin={canEdit}
-              isSidebarOpen={isSidebarOpen}
-              isDarkMode={isDarkMode}
-            />
-          </div>
-        ) : (
-          <>
-            <Sidebar 
-              isDarkMode={isDarkMode}
-              toggleDarkMode={toggleDarkMode}
-              currentView={currentView} 
-              onViewChange={setCurrentView} 
-              tracks={displayTracks}
-              onTracksReorder={handleTracksReorder}
-              onDeleteTrack={handleDeleteTrack}
-              onDeleteSub={handleDeleteSubcategory}
-              selectedTrackId={selectedTrackId}
-              onTrackSelect={setSelectedTrackId}
-              selectedSubcategoryId={selectedSubcategoryId}
-              onSubcategorySelect={setSelectedSubcategoryId}
-              isAdmin={canEdit}
-              onLogout={handleLogout}
-              isOpen={isSidebarOpen}
-              onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
-              onClose={() => setIsSidebarOpen(false)}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-            />
-            <main 
-              ref={mainContentRef} 
-              onScroll={handleMainScroll}
-              className={`flex-1 flex flex-col relative overflow-y-auto custom-scrollbar py-6 sm:py-12 scroll-smooth ${isSidebarOpen ? 'px-4 sm:px-6 lg:px-12' : 'px-4 sm:px-12 lg:px-20'}`}
+        <AnimatePresence mode="wait">
+          {currentView === 'editor' && selectedProject ? (
+            <motion.div 
+              key="editor"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+              className="flex-1 h-full overflow-hidden z-[100]"
             >
-              {/* Back to Top Arrow */}
-              {showScrollTop && (
-                <button 
-                  onClick={scrollToTop}
-                  className={`fixed bottom-10 right-6 sm:right-10 z-[100] w-12 h-12 rounded-full flex items-center justify-center shadow-xl border-2 transition-all scale-100 hover:scale-110 active:scale-95 animate-in fade-in slide-in-from-bottom-5 duration-300 group ${
-                    isDarkMode 
-                      ? 'bg-slate-800/80 backdrop-blur-md text-purple-400 border-slate-700 hover:bg-purple-700 hover:text-white shadow-black/40' 
-                      : 'bg-white/80 backdrop-blur-md text-purple-700 border-slate-100 hover:bg-purple-700 hover:text-white'
-                  }`}
-                  aria-label="Back to Top"
+              <ProjectEditor 
+                project={selectedProject} 
+                tracks={tracks} 
+                onSave={handleSaveProject} 
+                onBack={() => { setCurrentView(lastView); setSelectedProject(null); }} 
+                isDarkMode={isDarkMode}
+              />
+            </motion.div>
+          ) : currentView === 'viewer' && selectedProject ? (
+            <motion.div 
+              key="viewer"
+              initial={{ opacity: 0, scale: 0.95, filter: 'blur(10px)' }}
+              animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, scale: 1.05, filter: 'blur(10px)' }}
+              transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              className="flex-1 h-full overflow-hidden"
+            >
+              <ProjectViewer 
+                project={selectedProject}
+                track={tracks.find(t => t.id === selectedProject.trackId)}
+                onBack={() => { setCurrentView(lastView); setSelectedProject(null); }}
+                onEdit={() => setCurrentView('editor')}
+                onDelete={(e) => handleDeleteProject(e, selectedProject.id)}
+                isAdmin={canEdit}
+                isSidebarOpen={isSidebarOpen}
+                isDarkMode={isDarkMode}
+              />
+            </motion.div>
+          ) : (currentView === 'home' || currentView === 'history') ? (
+            <motion.div 
+              key="main-hub"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="flex-1 flex overflow-hidden relative"
+            >
+              <Sidebar 
+                isDarkMode={isDarkMode}
+                toggleDarkMode={toggleDarkMode}
+                currentView={currentView} 
+                onViewChange={setCurrentView} 
+                tracks={displayTracks}
+                onTracksReorder={handleTracksReorder}
+                onDeleteTrack={handleDeleteTrack}
+                onDeleteSub={handleDeleteSubcategory}
+                selectedTrackId={selectedTrackId}
+                onTrackSelect={setSelectedTrackId}
+                selectedSubcategoryId={selectedSubcategoryId}
+                onSubcategorySelect={setSelectedSubcategoryId}
+                isAdmin={canEdit}
+                onLogout={handleLogout}
+                isOpen={isSidebarOpen}
+                onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+                onClose={() => setIsSidebarOpen(false)}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+              />
+              {currentView === 'history' ? renderHistoryView() : (
+                <main 
+                  ref={mainContentRef} 
+                  onScroll={handleMainScroll}
+                  className={`flex-1 flex flex-col relative overflow-y-auto custom-scrollbar py-6 sm:py-12 ${isSidebarOpen ? 'px-4 sm:px-6 lg:px-12' : 'px-4 sm:px-12 lg:px-20'}`}
                 >
-                  <div className="group-hover:-translate-y-1 transition-transform">
-                    {ICONS.Up}
-                  </div>
-                </button>
-              )}
-              {/* Mobile Header */}
-              <div className={`md:hidden flex items-center justify-between mb-8 p-4 rounded-2xl border-2 shadow-sm ${
-                isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-              }`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-purple-700 rounded-lg flex items-center justify-center text-white">
-                    <div className="w-4 h-4 border-2 border-white rounded flex items-center justify-center">
-                      <div className="w-1 h-1 bg-white rounded-full"></div>
-                    </div>
-                  </div>
-                  <span className={`text-xs font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>CFF HUB</span>
-                </div>
-                <button 
-                  onClick={() => setIsSidebarOpen(true)}
-                  className={`p-2 rounded-xl ${isDarkMode ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-900'}`}
-                >
-                  {ICONS.Menu}
-                </button>
-              </div>
-
-              <header className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12 sm:mb-16">
-                <div className="group flex items-center gap-4">
-                  <div>
-                    <h1 className={`text-[18px] sm:text-[28px] font-black leading-tight uppercase tracking-tight flex items-center flex-wrap gap-y-1 ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>
-                      {getBreadcrumbs()}
-                    </h1>
-                    <p className={`text-[11px] sm:text-[14px] font-black uppercase tracking-[0.3em] mt-1 ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>
-                      {role === 'admin' ? 'ADMIN CONSOLE' : role === 'trainer' ? 'TRAINER HUB' : 'STUDENT PORTAL'}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-6">
-                  <div className="flex items-center gap-4 w-full md:w-auto">
-                    {(selectedTrackId || selectedSubcategoryId) && (
-                      <button 
-                        onClick={() => { 
-                          if (selectedSubcategoryId) setSelectedSubcategoryId(null);
-                          else setSelectedTrackId(null);
-                        }}
-                        className="text-[9px] sm:text-[11px] font-black text-slate-500 hover:text-purple-700 uppercase tracking-widest flex items-center gap-2 transition-colors group"
+                  {/* Undo Toast */}
+                  <AnimatePresence>
+                    {undoAction && (
+                      <motion.div 
+                        key="undo-toast"
+                        initial={{ y: 50, opacity: 0, x: '-50%', scale: 0.9 }}
+                        animate={{ y: 0, opacity: 1, x: '-50%', scale: 1 }}
+                        exit={{ y: 50, opacity: 0, x: '-50%', scale: 0.9 }}
+                        className="fixed bottom-10 left-1/2 z-[100]"
                       >
-                        <span className="group-hover:-translate-x-1 transition-transform">{ICONS.Back}</span> BACK
-                      </button>
-                    )}
-                  </div>
-                  {canEdit && (
-                    <button 
-                      onClick={() => handleCreateProject()}
-                      className={`w-full md:w-auto flex items-center justify-center gap-3 bg-purple-700 text-white px-8 sm:px-10 py-4 sm:py-5 rounded-[1.5rem] sm:rounded-[2rem] text-[11px] sm:text-[13px] font-black uppercase tracking-widest hover:bg-slate-950 shadow-2xl transition-all active:scale-95 ${isDarkMode ? 'shadow-black/50 hover:bg-purple-600' : ''}`}
-                    >
-                      {ICONS.Plus} ADD TUTORIAL
-                    </button>
-                  )}
-                </div>
-              </header>
-              <div className="space-y-24 sm:space-y-32 pb-20">
-                {isLoading ? (
-                  <div className="flex flex-col items-center justify-center py-20 gap-4">
-                    <div className="w-12 h-12 border-4 border-purple-200 border-t-purple-700 rounded-full animate-spin"></div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Syncing with Cloud...</p>
-                  </div>
-                ) : (Array.isArray(visibleTracks) ? visibleTracks : []).map((track) => {
-                  const trackProjects = filteredProjects.filter(p => p.trackId === track.id);
-                  const subcategoriesToRender = selectedSubcategoryId ? track.subcategories?.filter(s => s.id === selectedSubcategoryId) : track.subcategories;
-                  const hasSubcategories = subcategoriesToRender && subcategoriesToRender.length > 0;
-                  return (
-                    <section key={track.id} className="space-y-10 sm:space-y-12 animate-in fade-in slide-in-from-bottom-8 duration-700">
-                      {!selectedTrackId && (
-                        <div className={`flex items-center justify-between border-b-4 pb-6 sm:pb-8 cursor-pointer group ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`} onClick={() => setSelectedTrackId(track.id)}>
-                          <div className="flex items-center gap-4 sm:gap-6">
-                            <span className={`text-3xl sm:text-5xl p-3 sm:p-5 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-xl border-2 group-hover:scale-105 transition-transform ${isDarkMode ? 'bg-[#15171e] border-slate-700 shadow-black/40' : 'bg-white border-slate-100'}`}>{track.icon}</span>
-                            <div>
-                              <h3 className={`text-xl sm:text-3xl font-black uppercase tracking-tight leading-none group-hover:text-purple-700 transition-colors ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>{track.title}</h3>
-                              <p className={`text-[10px] sm:text-[13px] font-black uppercase tracking-[0.2em] mt-2 sm:mt-3 ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}>{track.subtitle}</p>
+                        <div className={`flex items-center gap-6 px-6 py-4 rounded-[2rem] shadow-2xl border-2 transition-all ${
+                          isDarkMode 
+                            ? 'bg-[#15171e] text-white border-slate-800 shadow-black/60' 
+                            : 'bg-white text-slate-950 border-slate-100 shadow-slate-200'
+                        }`}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-red-500/10 text-red-500 flex items-center justify-center">
+                              {ICONS.Delete}
                             </div>
+                            <span className="text-[11px] font-black uppercase tracking-widest whitespace-nowrap">
+                              {undoAction.message}
+                            </span>
                           </div>
+                          <div className={`w-[2px] h-6 ${isDarkMode ? 'bg-slate-800' : 'bg-slate-100'}`} />
+                          <button 
+                            onClick={triggerUndo}
+                            className="text-[11px] font-black uppercase tracking-widest text-purple-600 hover:text-purple-700 transition-colors flex items-center gap-2"
+                          >
+                            <span>UNDO</span>
+                            <span className="scale-75">{ICONS.Back}</span>
+                          </button>
                         </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  {/* Back to Top Arrow */}
+                  <AnimatePresence>
+                    {showScrollTop && (
+                      <motion.button 
+                        key="scroll-top"
+                        initial={{ scale: 0, opacity: 0, y: 20 }}
+                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                        exit={{ scale: 0, opacity: 0, y: 20 }}
+                        onClick={scrollToTop}
+                        className={`fixed bottom-10 right-6 sm:right-10 z-[100] w-12 h-12 rounded-full flex items-center justify-center shadow-xl border-2 transition-all hover:scale-110 active:scale-95 group ${
+                          isDarkMode 
+                            ? 'bg-slate-800/80 backdrop-blur-md text-purple-400 border-slate-700 hover:bg-purple-700 hover:text-white shadow-black/40' 
+                            : 'bg-white/80 backdrop-blur-md text-purple-700 border-slate-100 hover:bg-purple-700 hover:text-white'
+                        }`}
+                        aria-label="Back to Top"
+                      >
+                        <div className="group-hover:-translate-y-1 transition-transform">
+                          {ICONS.Up}
+                        </div>
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+                  
+                  {renderMobileHeader()}
+                  
+                  <header className="flex flex-col xl:flex-row xl:items-center justify-between gap-8 mb-12 sm:mb-16">
+                    <div className="group flex items-center gap-4">
+                      <div>
+                        <h1 className={`text-[18px] sm:text-[28px] font-black leading-tight uppercase tracking-tight flex items-center flex-wrap gap-y-1 ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>
+                          {getBreadcrumbs()}
+                        </h1>
+                        <p className={`text-[11px] sm:text-[14px] font-black uppercase tracking-[0.3em] mt-1 ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>
+                          {role === 'admin' ? 'ADMIN CONSOLE' : role === 'trainer' ? 'TRAINER HUB' : 'STUDENT PORTAL'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-6">
+                      <div className="flex items-center gap-4 w-full md:w-auto">
+                        {(selectedTrackId || selectedSubcategoryId) && (
+                          <button 
+                            onClick={() => { 
+                              if (selectedSubcategoryId) setSelectedSubcategoryId(null);
+                              else setSelectedTrackId(null);
+                            }}
+                            className="text-[9px] sm:text-[11px] font-black text-slate-500 hover:text-purple-700 uppercase tracking-widest flex items-center gap-2 transition-colors group"
+                          >
+                            <span className="group-hover:-translate-x-1 transition-transform">{ICONS.Back}</span> BACK
+                          </button>
+                        )}
+                      </div>
+                      {canEdit && (
+                        <button 
+                          onClick={() => handleCreateProject()}
+                          className={`w-full md:w-auto flex items-center justify-center gap-3 bg-purple-700 text-white px-8 sm:px-10 py-4 sm:py-5 rounded-[1.5rem] sm:rounded-[2rem] text-[11px] sm:text-[13px] font-black uppercase tracking-widest hover:bg-slate-950 shadow-2xl transition-all active:scale-95 ${isDarkMode ? 'shadow-black/50 hover:bg-purple-600' : ''}`}
+                        >
+                          {ICONS.Plus} ADD TUTORIAL
+                        </button>
                       )}
-                      {hasSubcategories ? (
-                        <div className="space-y-12 sm:space-y-16">
-                          {subcategoriesToRender?.map(sub => {
-                            const subProjects = trackProjects.filter(p => p.subcategoryId === sub.id);
-                            return (
-                              <div key={sub.id} className="space-y-6 sm:space-y-8 pl-3 sm:pl-4 border-l-4 border-purple-100">
-                                <h4 className={`text-lg sm:text-xl font-black uppercase tracking-widest flex items-center gap-3 sm:gap-4 cursor-pointer hover:text-purple-900 transition-colors ${selectedSubcategoryId === sub.id ? 'text-purple-900' : 'text-purple-700'}`} onClick={() => setSelectedSubcategoryId(sub.id)}>
-                                  <span className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${selectedSubcategoryId === sub.id ? 'bg-purple-900 scale-125' : 'bg-purple-600'}`} />
-                                  {sub.title}
-                                </h4>
-                                <div className={getGridClasses()}>
-                                  {subProjects.map(project => renderProjectCard(project))}
-                                  {canEdit && renderAddPlaceholder(track.id, sub.id)}
+                    </div>
+                  </header>
+                  <div className="space-y-24 sm:space-y-32 pb-20">
+                    {(Array.isArray(visibleTracks) ? visibleTracks : []).map((track) => {
+                      const trackProjects = filteredProjects.filter(p => p.trackId === track.id);
+                      const subcategoriesToRender = selectedSubcategoryId ? track.subcategories?.filter(s => s.id === selectedSubcategoryId) : track.subcategories;
+                      const hasSubcategories = subcategoriesToRender && subcategoriesToRender.length > 0;
+                      return (
+                        <section key={track.id} className="space-y-10 sm:space-y-12">
+                          {!selectedTrackId && (
+                            <div className={`flex items-center justify-between border-b-4 pb-6 sm:pb-8 cursor-pointer group ${isDarkMode ? 'border-slate-800' : 'border-slate-200'}`} onClick={() => setSelectedTrackId(track.id)}>
+                              <div className="flex items-center gap-4 sm:gap-6">
+                                <span className={`text-3xl sm:text-5xl p-3 sm:p-5 rounded-[1.5rem] sm:rounded-[2.5rem] shadow-xl border-2 group-hover:scale-105 transition-transform ${isDarkMode ? 'bg-[#15171e] border-slate-700 shadow-black/40' : 'bg-white border-slate-100'}`}>{track.icon}</span>
+                                <div>
+                                  <h3 className={`text-xl sm:text-3xl font-black uppercase tracking-tight leading-none group-hover:text-purple-700 transition-colors ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>{track.title}</h3>
+                                  <p className={`text-[10px] sm:text-[13px] font-black uppercase tracking-[0.2em] mt-2 sm:mt-3 ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}>{track.subtitle}</p>
                                 </div>
-                              </div>
-                            );
-                          })}
-                          {!selectedSubcategoryId && trackProjects.filter(p => !p.subcategoryId).length > 0 && (
-                            <div className="space-y-6 sm:space-y-8 pl-3 sm:pl-4">
-                              <h4 className="text-lg sm:text-xl font-black text-slate-400 uppercase tracking-widest">Other Tutorials</h4>
-                              <div className={getGridClasses()}>
-                                {trackProjects.filter(p => !p.subcategoryId).map(project => renderProjectCard(project))}
-                                {canEdit && renderAddPlaceholder(track.id)}
                               </div>
                             </div>
                           )}
-                        </div>
-                      ) : (
-                        (!selectedSubcategoryId) && (
-                          <div className={getGridClasses()}>
-                            {trackProjects.map((project) => renderProjectCard(project))}
-                            {canEdit && renderAddPlaceholder(track.id)}
-                          </div>
-                        )
-                      )}
-                    </section>
-                  );
-                })}
-              </div>
-            </main>
-          </>
-        )}
-      </div>
+                          {hasSubcategories ? (
+                            <div className="space-y-12 sm:space-y-16">
+                              {subcategoriesToRender?.map(sub => {
+                                const subProjects = trackProjects.filter(p => p.subcategoryId === sub.id);
+                                return (
+                                  <div key={sub.id} className="space-y-6 sm:space-y-8 pl-3 sm:pl-4 border-l-4 border-purple-100">
+                                    <h4 className={`text-lg sm:text-xl font-black uppercase tracking-widest flex items-center gap-3 sm:gap-4 cursor-pointer hover:text-purple-900 transition-colors ${selectedSubcategoryId === sub.id ? 'text-purple-900' : 'text-purple-700'}`} onClick={() => setSelectedSubcategoryId(sub.id)}>
+                                      <span className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${selectedSubcategoryId === sub.id ? 'bg-purple-900 scale-125' : 'bg-purple-600'}`} />
+                                      {sub.title}
+                                    </h4>
+                                    <div className={getGridClasses()}>
+                                      {subProjects.map(project => renderProjectCard(project))}
+                                      {canEdit && renderAddPlaceholder(track.id, sub.id)}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              {!selectedSubcategoryId && trackProjects.filter(p => !p.subcategoryId).length > 0 && (
+                                <div className="space-y-6 sm:space-y-8 pl-3 sm:pl-4">
+                                  <h4 className="text-lg sm:text-xl font-black text-slate-400 uppercase tracking-widest">Other Tutorials</h4>
+                                  <div className={getGridClasses()}>
+                                    {trackProjects.filter(p => !p.subcategoryId).map(project => renderProjectCard(project))}
+                                    {canEdit && renderAddPlaceholder(track.id)}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            (!selectedSubcategoryId) && (
+                              <div className={getGridClasses()}>
+                                {trackProjects.map((project) => renderProjectCard(project))}
+                                {canEdit && renderAddPlaceholder(track.id)}
+                              </div>
+                            )
+                          )}
+                        </section>
+                      );
+                    })}
+                  </div>
+                </main>
+              )}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </motion.div>
     );
   };
 
+  const location = useLocation();
+
   return (
-    <Routes>
-      <Route path="/" element={
-        <LandingPage 
-          onAdminLoginSuccess={() => { setIsAuthenticated(true); }} 
-          onTrainerLoginSuccess={() => { setIsViewerAuthenticated(true); }} 
-          isDarkMode={isDarkMode}
-          toggleDarkMode={toggleDarkMode}
-        />
-      } />
-      <Route path="/student" element={renderMainHub('student')} />
-      <Route path="/trainer-dashboard" element={
-        isViewerAuthenticated ? renderMainHub('trainer') : <Navigate to="/" />
-      } />
-      <Route path="/admin-dashboard" element={
-        isAuthenticated ? renderMainHub('admin') : <Navigate to="/" />
-      } />
-      <Route path="*" element={<Navigate to="/" />} />
-    </Routes>
+    <div className={`min-h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#0a0b0d]' : 'bg-slate-50'}`}>
+      <AnimatePresence mode="wait">
+        {isLoading && <LoadingScreen isDarkMode={isDarkMode} key="loading" />}
+      </AnimatePresence>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={
+            <LandingPage 
+              onAdminLoginSuccess={() => { setIsAuthenticated(true); }} 
+              onTrainerLoginSuccess={() => { setIsViewerAuthenticated(true); }} 
+              isDarkMode={isDarkMode}
+              toggleDarkMode={toggleDarkMode}
+            />
+          } />
+          <Route path="/student" element={renderMainHub('student')} />
+          <Route path="/trainer-dashboard" element={
+            isViewerAuthenticated ? renderMainHub('trainer') : <Navigate to="/" />
+          } />
+          <Route path="/admin-dashboard" element={
+            isAuthenticated ? renderMainHub('admin') : <Navigate to="/" />
+          } />
+          <Route path="*" element={<Navigate to="/" />} />
+        </Routes>
+      </AnimatePresence>
+    </div>
   );
 };
 

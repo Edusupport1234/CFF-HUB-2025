@@ -50,9 +50,37 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [draggedSubIndex, setDraggedSubIndex] = useState<{ trackIdx: number, subIdx: number } | null>(null);
   const [expandedTrackIds, setExpandedTrackIds] = useState<Set<string>>(new Set());
   
-  // Inline adding state
-  const [addingTrack, setAddingTrack] = useState(false);
-  const [newTrackName, setNewTrackName] = useState('');
+  // Add Track Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newTrackData, setNewTrackData] = useState({
+    title: '',
+    subtitle: '',
+    icon: '📚',
+    audience: 'all' as 'all' | 'trainer',
+    subcategories: [] as string[]
+  });
+  const [tempSub, setTempSub] = useState('');
+
+  const submitNewTrack = () => {
+    if (!newTrackData.title.trim()) return;
+
+    const newTrack: LearningTrack = {
+      id: `track-${Date.now()}`,
+      title: newTrackData.title.trim(),
+      subtitle: newTrackData.subtitle.trim() || 'NEW CURRICULUM',
+      icon: newTrackData.icon,
+      audience: newTrackData.audience,
+      subcategories: newTrackData.subcategories.map(s => ({
+        id: `sub-${Math.random().toString(36).substr(2, 5)}`,
+        title: s
+      }))
+    };
+
+    onTracksReorder([...tracks, newTrack]);
+    setIsModalOpen(false);
+    setNewTrackData({ title: '', subtitle: '', icon: '📚', audience: 'all', subcategories: [] });
+  };
+
   const [addingSubToTrackId, setAddingSubToTrackId] = useState<string | null>(null);
   const [newSubName, setNewSubName] = useState('');
 
@@ -67,10 +95,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   });
 
   useEffect(() => {
-    if ((addingTrack || addingSubToTrackId) && inputRef.current) {
+    if ((isModalOpen || addingSubToTrackId) && inputRef.current) {
       inputRef.current.focus();
     }
-  }, [addingTrack, addingSubToTrackId]);
+  }, [isModalOpen, addingSubToTrackId]);
 
   const toggleTrackExpansion = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
@@ -87,6 +115,10 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (!expandedTrackIds.has(id)) {
       setExpandedTrackIds(prev => new Set(prev).add(id));
     }
+    // Only close on mobile if it's a mobile view
+    if (window.innerWidth < 768) {
+      onClose();
+    }
   };
 
   const handleSubcategoryClick = (e: React.MouseEvent, trackId: string, subId: string) => {
@@ -94,27 +126,11 @@ const Sidebar: React.FC<SidebarProps> = ({
     onTrackSelect(trackId);
     onSubcategorySelect(subId);
     onViewChange('home');
+    if (window.innerWidth < 768) {
+      onClose();
+    }
   };
 
-  const submitNewTrack = () => {
-    if (!newTrackName.trim()) {
-      setAddingTrack(false);
-      return;
-    }
-    
-    const newTrack: LearningTrack = {
-      id: Math.random().toString(36).substr(2, 9),
-      title: newTrackName.toUpperCase(),
-      subtitle: `VIDEO TUTORIALS FOR ${newTrackName.toUpperCase()}`,
-      icon: '📚',
-      subcategories: []
-    };
-    
-    onTracksReorder([...tracks, newTrack]);
-    setExpandedTrackIds(prev => new Set(prev).add(newTrack.id));
-    setNewTrackName('');
-    setAddingTrack(false);
-  };
 
   const submitNewSubcategory = (trackId: string) => {
     if (!newSubName.trim()) {
@@ -230,22 +246,49 @@ const Sidebar: React.FC<SidebarProps> = ({
             className={`group relative flex items-center rounded-xl transition-all overflow-hidden whitespace-nowrap ${
               isOpen ? 'w-full gap-4 px-2 py-3' : 'w-12 h-12 justify-center'
             } ${
-              currentView === 'home' && selectedTrackId === null
+              (currentView === 'home' || (!isOpen && currentView === 'history')) && selectedTrackId === null
               ? (isDarkMode ? 'text-purple-400 bg-purple-500/10' : 'text-purple-700 bg-purple-50/50')
               : (isDarkMode ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-900 hover:bg-slate-50')
             }`}
           >
-            <span className={`shrink-0 transition-colors ${currentView === 'home' && selectedTrackId === null ? (isDarkMode ? 'text-purple-400' : 'text-purple-700') : (isDarkMode ? 'text-slate-400' : 'text-slate-700')}`}>{ICONS.Home}</span>
-            <span className={`text-[15px] font-black uppercase tracking-tight ${!isOpen ? 'md:hidden' : ''}`}>HOME PAGE</span>
+            <span className={`shrink-0 transition-colors ${(currentView === 'home' || (!isOpen && currentView === 'history')) && selectedTrackId === null ? (isDarkMode ? 'text-purple-400' : 'text-purple-700') : (isDarkMode ? 'text-slate-400' : 'text-slate-700')}`}>
+              {!isOpen && currentView === 'history' ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+              ) : ICONS.Home}
+            </span>
+            <span className={`text-[15px] font-black uppercase tracking-tight ${!isOpen ? 'md:hidden' : ''}`}>
+              {!isOpen && currentView === 'history' ? 'WATCH HISTORY' : 'HOME PAGE'}
+            </span>
 
             {/* Custom Tooltip for collapsed state */}
             {!isOpen && (
               <div className="absolute left-full ml-4 px-3 py-1.5 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all whitespace-nowrap shadow-xl z-50">
-                Home
+                {currentView === 'history' ? 'History' : 'Home'}
                 <div className="absolute left-0 top-1/2 -translate-x-full -translate-y-1/2 border-4 border-transparent border-r-slate-900" />
               </div>
             )}
           </button>
+
+          {isOpen && (
+            <button
+              onClick={() => {
+                onViewChange('history');
+                onTrackSelect(null);
+                onSubcategorySelect(null);
+                if (window.innerWidth < 768) onClose();
+              }}
+              className={`group relative flex items-center rounded-xl transition-all overflow-hidden whitespace-nowrap w-full gap-4 px-2 py-3 ${
+                currentView === 'history'
+                ? (isDarkMode ? 'text-purple-400 bg-purple-500/10' : 'text-purple-700 bg-purple-50/50')
+                : (isDarkMode ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-900 hover:bg-slate-50')
+              }`}
+            >
+              <span className={`shrink-0 transition-colors ${currentView === 'history' ? (isDarkMode ? 'text-purple-400' : 'text-purple-700') : (isDarkMode ? 'text-slate-400' : 'text-slate-700')}`}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+              </span>
+              <span className="text-[15px] font-black uppercase tracking-tight">HISTORY</span>
+            </button>
+          )}
           <button onClick={onClose} className="md:hidden p-2 text-slate-400 hover:text-slate-950 ml-auto">
             {ICONS.Back}
           </button>
@@ -277,34 +320,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           {isAdmin && isOpen && (
             <div className="px-3 mb-6 flex items-center justify-between">
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Navigation</span>
-              <button 
-                onClick={() => setAddingTrack(true)}
-                className={`p-1 px-2 flex items-center gap-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all border ${
-                  isDarkMode 
-                    ? 'bg-purple-900/30 text-purple-400 border-purple-800 hover:bg-purple-900/50' 
-                    : 'bg-purple-50 text-purple-700 border-purple-100 hover:bg-purple-100'
-                }`}
-              >
-                {ICONS.Plus} Track
-              </button>
-            </div>
-          )}
-          
-          {isAdmin && isOpen && addingTrack && (
-            <div className="px-2 mb-4">
-              <input
-                ref={inputRef}
-                value={newTrackName}
-                onChange={(e) => setNewTrackName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && submitNewTrack()}
-                onBlur={submitNewTrack}
-                placeholder="New Track..."
-                className={`w-full px-3 py-2 text-[11px] font-black uppercase tracking-widest border-2 rounded-lg focus:outline-none transition-all shadow-sm ${
-                  isDarkMode 
-                    ? 'bg-slate-800 border-purple-900 text-white focus:border-purple-500' 
-                    : 'bg-white border-purple-300 text-slate-950 focus:border-purple-600'
-                }`}
-              />
             </div>
           )}
           
@@ -427,6 +442,21 @@ const Sidebar: React.FC<SidebarProps> = ({
               )}
             </div>
           ))}
+
+          {isAdmin && isOpen && (
+            <div className="pt-2">
+              <button 
+                onClick={() => setIsModalOpen(true)}
+                className={`w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  isDarkMode 
+                    ? 'bg-slate-800/30 border-slate-700 text-slate-400 hover:text-purple-400 hover:border-purple-500/50' 
+                    : 'bg-slate-50 border-slate-200 text-slate-500 hover:text-purple-700 hover:border-purple-400'
+                }`}
+              >
+                {ICONS.Plus} ADD NEW TRACK
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -483,6 +513,164 @@ const Sidebar: React.FC<SidebarProps> = ({
           )}
         </button>
       </div>
+
+      {/* Add Track Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-sm animate-fade-in">
+          <div 
+            className={`w-full max-w-lg rounded-[2.5rem] shadow-2xl overflow-hidden animate-slide-up border-2 ${
+              isDarkMode ? 'bg-[#0f1117] border-slate-800 text-white' : 'bg-white border-slate-100 text-slate-950'
+            }`}
+          >
+            <div className={`px-8 py-6 border-b-2 flex items-center justify-between ${isDarkMode ? 'border-slate-800' : 'border-slate-50'}`}>
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-purple-600/10 text-purple-500 flex items-center justify-center text-xl">
+                  {newTrackData.icon}
+                </div>
+                <div>
+                  <h3 className="text-sm font-black uppercase tracking-widest">Create New Track</h3>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.15em]">Define your curriculum</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className={`p-2 rounded-xl transition-colors ${isDarkMode ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-50 text-slate-400'}`}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+              {/* Emoji & Title */}
+              <div className="grid grid-cols-4 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Icon</label>
+                  <select 
+                    value={newTrackData.icon}
+                    onChange={e => setNewTrackData({...newTrackData, icon: e.target.value})}
+                    className={`w-full px-4 py-3 border-2 rounded-xl text-lg focus:outline-none transition-all ${
+                      isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'
+                    }`}
+                  >
+                    {['📚', '🚀', '🧠', '📜', '🔧', '🔬', '🎨', '💻', '🌍', '⚡'].map(emoji => (
+                      <option key={emoji} value={emoji}>{emoji}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-3 space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Track Title</label>
+                  <input 
+                    value={newTrackData.title}
+                    onChange={e => setNewTrackData({...newTrackData, title: e.target.value})}
+                    placeholder="e.g., ROBOTICS 101"
+                    className={`w-full px-5 py-3 border-2 rounded-xl text-xs font-black focus:outline-none transition-all ${
+                      isDarkMode ? 'bg-slate-900 border-slate-800 focus:border-purple-500' : 'bg-slate-50 border-slate-100 focus:border-purple-600'
+                    }`}
+                  />
+                </div>
+              </div>
+
+              {/* Subtitle */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Subtitle / Description</label>
+                <input 
+                  value={newTrackData.subtitle}
+                  onChange={e => setNewTrackData({...newTrackData, subtitle: e.target.value})}
+                  placeholder="e.g., EXPLORE THE WORLD OF MOTORS"
+                  className={`w-full px-5 py-3 border-2 rounded-xl text-[11px] font-bold focus:outline-none transition-all ${
+                    isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'
+                  }`}
+                />
+              </div>
+
+              {/* Audience */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Audience Type</label>
+                <div className="flex gap-2">
+                  {[
+                    { id: 'all', label: 'Public - Students & Trainers' },
+                    { id: 'trainer', label: 'Trainers Only - Restricted' }
+                  ].map(aud => (
+                    <button
+                      key={aud.id}
+                      onClick={() => setNewTrackData({...newTrackData, audience: aud.id as any})}
+                      className={`flex-1 px-4 py-3 border-2 rounded-xl text-[9px] font-black uppercase tracking-[0.15em] transition-all ${
+                        newTrackData.audience === aud.id
+                          ? 'bg-purple-600 border-purple-600 text-white'
+                          : (isDarkMode ? 'bg-slate-900 border-slate-800 text-slate-500' : 'bg-white border-slate-100 text-slate-400')
+                      }`}
+                    >
+                      {aud.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Subcategories pre-add */}
+              <div className="space-y-4 pt-4 border-t-2 border-slate-800/50">
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Subcategories (Optional)</label>
+                <div className="flex flex-wrap gap-2">
+                  {newTrackData.subcategories.map((s, idx) => (
+                    <div key={idx} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 border border-purple-500/20 text-[10px] font-black uppercase tracking-widest">
+                      <span>{s}</span>
+                      <button 
+                        onClick={() => setNewTrackData({...newTrackData, subcategories: newTrackData.subcategories.filter((_, i) => i !== idx)})}
+                        className="hover:text-red-400 transition-colors"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input 
+                    value={tempSub}
+                    onChange={e => setTempSub(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && tempSub.trim()) {
+                        setNewTrackData({...newTrackData, subcategories: [...newTrackData.subcategories, tempSub.trim()]});
+                        setTempSub('');
+                      }
+                    }}
+                    placeholder="Add subcategory..."
+                    className={`flex-1 px-4 py-2 border-2 rounded-xl text-[10px] font-bold focus:outline-none transition-all ${
+                      isDarkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-100'
+                    }`}
+                  />
+                  <button 
+                    disabled={!tempSub.trim()}
+                    onClick={() => {
+                      setNewTrackData({...newTrackData, subcategories: [...newTrackData.subcategories, tempSub.trim()]});
+                      setTempSub('');
+                    }}
+                    className="p-2 w-10 h-10 rounded-xl bg-purple-500 text-white flex items-center justify-center hover:bg-purple-600 disabled:opacity-50 transition-all shadow-lg shadow-purple-500/20"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className={`px-8 py-6 border-t-2 flex gap-4 ${isDarkMode ? 'border-slate-800 bg-[#12141c]' : 'border-slate-50 bg-slate-50/50'}`}>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className={`flex-1 px-6 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all ${
+                  isDarkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                }`}
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={submitNewTrack}
+                disabled={!newTrackData.title.trim()}
+                className="flex-[2] px-6 py-4 rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-[11px] font-black uppercase tracking-widest shadow-xl shadow-purple-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50"
+              >
+                Create Track
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   </>
 );
