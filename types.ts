@@ -37,6 +37,8 @@ export interface Project {
   subcategoryId?: string | null; // Optional link to subcategory
   sections: Section[];
   audience?: 'all' | 'trainer' | 'student';
+  isDeleted?: boolean;
+  deletedAt?: string | number;
 }
 
 export interface Subcategory {
@@ -53,4 +55,4 @@ export interface LearningTrack {
   audience?: 'all' | 'trainer' | 'student';
 }
 
-export type ViewState = 'home' | 'editor' | 'admin' | 'viewer' | 'history';
+export type ViewState = 'home' | 'editor' | 'admin' | 'viewer' | 'history' | 'trash';

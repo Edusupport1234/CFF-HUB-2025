@@ -539,30 +539,71 @@ const App: React.FC = () => {
     
     setConfirmModal({
       isOpen: true,
-      title: 'Delete Tutorial',
-      message: 'Are you sure you want to permanently delete this tutorial? This action cannot be undone.',
-      confirmText: 'Delete Tutorial',
+      title: 'Move to Trash',
+      message: 'Are you sure you want to move this tutorial to the recent deletions? It can be recovered for up to 30 days or permanently deleted by an administrator.',
+      confirmText: 'Move to Trash',
       isDestructive: true,
       onConfirm: () => {
         setIsLoading(true);
-        const projectToDelete = projects.find(p => p.id === projectId);
-        const newProjects = projects.filter(p => p.id !== projectId);
+        const newProjects = projects.map(p => {
+          if (p.id === projectId) {
+            return {
+              ...p,
+              isDeleted: true,
+              deletedAt: Date.now()
+            };
+          }
+          return p;
+        });
+        
         setProjects(newProjects);
         const cleanedProjects = JSON.parse(JSON.stringify(newProjects));
         set(ref(db, 'projects'), cleanedProjects);
-        
-        if (projectToDelete) {
-          setUndoAction({
-            type: 'PROJECT',
-            data: projectToDelete,
-            message: `Deleted "${projectToDelete.title}"`
-          });
-        }
         
         if (selectedProject?.id === projectId) {
           setSelectedProject(null);
           setCurrentView('home');
         }
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      }
+    });
+  };
+
+  const handleRecoverProject = (projectId: string) => {
+    if (!isAuthenticated) return;
+    setIsLoading(true);
+    
+    const newProjects = projects.map(p => {
+      if (p.id === projectId) {
+        return {
+          ...p,
+          isDeleted: false,
+          deletedAt: undefined
+        };
+      }
+      return p;
+    });
+    
+    setProjects(newProjects);
+    const cleanedProjects = JSON.parse(JSON.stringify(newProjects));
+    set(ref(db, 'projects'), cleanedProjects);
+  };
+
+  const handlePermanentDelete = (projectId: string) => {
+    if (!isAuthenticated) return;
+    
+    setConfirmModal({
+      isOpen: true,
+      title: 'Permanently Delete',
+      message: 'This will permanently remove the video and all its data. This action cannot be undone.',
+      confirmText: 'Delete Permanently',
+      isDestructive: true,
+      onConfirm: () => {
+        setIsLoading(true);
+        const newProjects = projects.filter(p => p.id !== projectId);
+        setProjects(newProjects);
+        const cleanedProjects = JSON.parse(JSON.stringify(newProjects));
+        set(ref(db, 'projects'), cleanedProjects);
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
       }
     });
@@ -687,7 +728,7 @@ const App: React.FC = () => {
   const renderHistoryView = () => {
     const historyProjects = watchHistory
       .map(id => projects.find(p => p.id === id))
-      .filter((p): p is Project => !!p);
+      .filter((p): p is Project => !!p && !p.isDeleted);
 
     return (
       <main ref={mainContentRef} onScroll={handleMainScroll} className="flex-1 overflow-y-auto px-6 sm:px-12 py-10 custom-scrollbar relative h-screen">
@@ -808,6 +849,112 @@ const App: React.FC = () => {
     );
   };
 
+  const renderTrashView = () => {
+    const trashProjects = projects
+      .filter(p => p.isDeleted)
+      .sort((a, b) => {
+        const timeA = typeof a.deletedAt === 'number' ? a.deletedAt : 0;
+        const timeB = typeof b.deletedAt === 'number' ? b.deletedAt : 0;
+        return timeB - timeA;
+      });
+
+    return (
+      <main 
+        ref={mainContentRef} 
+        onScroll={handleMainScroll}
+        className={`flex-1 flex flex-col relative overflow-y-auto custom-scrollbar py-6 sm:py-12 ${isSidebarOpen ? 'px-4 sm:px-6 lg:px-12' : 'px-4 sm:px-12 lg:px-20'}`}
+      >
+        <header className="mb-16">
+          <div className="flex items-center gap-4 mb-4">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${isDarkMode ? 'bg-red-600/20 text-red-400' : 'bg-red-600/10 text-red-600'}`}>
+              {ICONS.Delete}
+            </div>
+            <div>
+              <h1 className={`text-4xl font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                Recently Deleted
+              </h1>
+              <p className="text-slate-500 font-bold tracking-tight">Videos can be recovered or permanently removed.</p>
+            </div>
+          </div>
+        </header>
+
+        {trashProjects.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 py-20">
+            <div className={`w-24 h-24 rounded-[3rem] flex items-center justify-center mb-6 ${isDarkMode ? 'bg-slate-800 text-slate-600' : 'bg-slate-100 text-slate-400'}`}>
+              <div className="scale-150">{ICONS.Delete}</div>
+            </div>
+            <h3 className={`text-xl font-black uppercase tracking-tight mb-2 ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>Trash is Empty</h3>
+            <p className="text-slate-500 font-bold max-w-xs">Items you delete will appear here for management.</p>
+            <button 
+              onClick={() => setCurrentView('home')}
+              className="mt-8 px-8 py-3 rounded-2xl bg-purple-600 text-white text-xs font-black uppercase tracking-widest hover:bg-purple-700 transition-all active:scale-95"
+            >
+              Back to Hub
+            </button>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 pb-10">
+            <AnimatePresence mode="popLayout">
+              {trashProjects.map((p) => {
+                const track = tracks.find(t => t.id === p.trackId);
+                const deletedDate = p.deletedAt ? new Date(p.deletedAt).toLocaleTimeString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently';
+                
+                return (
+                  <motion.div 
+                    layout
+                    key={p.id}
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.8, opacity: 0 }}
+                    className={`group relative rounded-[2.5rem] p-8 border-2 transition-all flex flex-col ${
+                      isDarkMode 
+                        ? 'bg-[#1a1c26] border-slate-800' 
+                        : 'bg-white border-slate-100 shadow-sm shadow-slate-200/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-4 mb-6">
+                      <div className="w-14 h-14 rounded-2xl bg-purple-600/10 text-purple-600 flex items-center justify-center text-2xl">
+                        {track?.icon || '📦'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                         <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest block mb-1">
+                          {track?.title || 'System'}
+                        </span>
+                        <h3 className={`text-lg font-black uppercase tracking-tight leading-tight truncate ${isDarkMode ? 'text-white' : 'text-slate-900'}`}>{p.title}</h3>
+                      </div>
+                    </div>
+                    
+                    <div className={`mb-8 p-4 rounded-2xl ${isDarkMode ? 'bg-slate-900/50' : 'bg-slate-50'}`}>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1 text-center">Moved to Trash</p>
+                      <p className={`font-black text-xs text-center ${isDarkMode ? 'text-slate-300' : 'text-slate-600'}`}>{deletedDate}</p>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => handleRecoverProject(p.id)}
+                        className="flex-1 px-4 py-4 rounded-2xl bg-purple-600/10 text-purple-600 text-[9px] font-black uppercase tracking-widest hover:bg-purple-600 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                        Recover
+                      </button>
+                      <button
+                        onClick={() => handlePermanentDelete(p.id)}
+                        className="flex-1 px-4 py-4 rounded-2xl bg-red-600/10 text-red-600 text-[9px] font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all active:scale-95 flex items-center justify-center gap-2"
+                      >
+                        {ICONS.Delete}
+                        Purge
+                      </button>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        )}
+      </main>
+    );
+  };
+
   const renderMainHub = (role: 'student' | 'trainer' | 'admin') => {
     // Only admins have edit/delete permissions
     const canEdit = role === 'admin';
@@ -820,6 +967,7 @@ const App: React.FC = () => {
       : tracks;
 
     const displayProjects = projects.filter(p => {
+      if (p.isDeleted) return false;
       const audienceAllowed = !p.audience || p.audience === 'all' || p.audience === role || role === 'admin' || role === 'trainer';
       
       if (role === 'student') {
@@ -1035,7 +1183,7 @@ const App: React.FC = () => {
                 isDarkMode={isDarkMode}
               />
             </motion.div>
-          ) : (currentView === 'home' || currentView === 'history') ? (
+          ) : (currentView === 'home' || currentView === 'history' || currentView === 'trash') ? (
             <motion.div 
               key="main-hub"
               initial={{ opacity: 0 }}
@@ -1065,7 +1213,7 @@ const App: React.FC = () => {
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
               />
-              {currentView === 'history' ? renderHistoryView() : (
+              {currentView === 'trash' ? renderTrashView() : currentView === 'history' ? renderHistoryView() : (
                 <main 
                   ref={mainContentRef} 
                   onScroll={handleMainScroll}

@@ -289,6 +289,27 @@ const Sidebar: React.FC<SidebarProps> = ({
               <span className="text-[15px] font-black uppercase tracking-tight">HISTORY</span>
             </button>
           )}
+
+          {isAdmin && isOpen && (
+            <button
+              onClick={() => {
+                onViewChange('trash');
+                onTrackSelect(null);
+                onSubcategorySelect(null);
+                if (window.innerWidth < 768) onClose();
+              }}
+              className={`group relative flex items-center rounded-xl transition-all overflow-hidden whitespace-nowrap w-full gap-4 px-2 py-3 mt-1 ${
+                currentView === 'trash'
+                ? (isDarkMode ? 'text-red-400 bg-red-500/10' : 'text-red-700 bg-red-50/50')
+                : (isDarkMode ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-900 hover:bg-slate-50')
+              }`}
+            >
+              <span className={`shrink-0 transition-colors ${currentView === 'trash' ? (isDarkMode ? 'text-red-400' : 'text-red-700') : (isDarkMode ? 'text-slate-400' : 'text-slate-700')}`}>
+                {ICONS.Delete}
+              </span>
+              <span className="text-[15px] font-black uppercase tracking-tight">REGISTRY TRASH</span>
+            </button>
+          )}
           <button onClick={onClose} className="md:hidden p-2 text-slate-400 hover:text-slate-950 ml-auto">
             {ICONS.Back}
           </button>
