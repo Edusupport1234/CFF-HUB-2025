@@ -77,7 +77,9 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({ isDarkMode }) => {
             </motion.span>
           </motion.h2>
           
-          <div className="w-48 h-1 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800 relative">
+          <div className={`w-48 h-1 overflow-hidden rounded-full relative ${
+            isDarkMode ? 'bg-slate-800' : 'bg-slate-100'
+          }`}>
             <motion.div 
               className="absolute top-0 left-0 h-full bg-gradient-to-r from-purple-600 to-indigo-600"
               initial={{ x: "-100%" }}

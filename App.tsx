@@ -88,14 +88,23 @@ const App: React.FC = () => {
   const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  });
   const [lastView, setLastView] = useState<ViewState>('home');
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [savedScrollPosition, setSavedScrollPosition] = useState(0);
   const [watchHistory, setWatchHistory] = useState<string[]>([]);
   const mainContentRef = React.useRef<HTMLElement>(null);
   
-  const toggleDarkMode = () => setIsDarkMode(!isDarkMode);
+  const toggleDarkMode = () => {
+    setIsDarkMode(prev => {
+      const next = !prev;
+      localStorage.setItem('theme', next ? 'dark' : 'light');
+      return next;
+    });
+  };
 
   // Custom Confirmation Modal State
   const [confirmModal, setConfirmModal] = useState<{
@@ -1227,7 +1236,7 @@ const App: React.FC = () => {
   const location = useLocation();
 
   return (
-    <div className={`min-h-screen transition-colors duration-500 ${isDarkMode ? 'bg-[#0a0b0d]' : 'bg-slate-50'}`}>
+    <div className={`min-h-screen transition-colors duration-500 ${isDarkMode ? 'dark bg-[#0a0b0d]' : 'bg-slate-50'}`}>
       <AnimatePresence mode="wait">
         {isLoading && <LoadingScreen isDarkMode={isDarkMode} key="loading" />}
       </AnimatePresence>
