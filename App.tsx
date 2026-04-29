@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import Sidebar from './components/Sidebar';
@@ -385,100 +385,6 @@ const App: React.FC = () => {
       }
     }
   }, [isLoading, projects.length]);
-
-  const scrollTriggerRef = useRef<'manual' | 'spy' | null>(null);
-
-  const intersectingElements = useRef<Map<string, number>>(new Map());
-
-  // Scroll Spy Logic
-  useEffect(() => {
-    const observerOptions = {
-      root: null,
-      rootMargin: '-20% 0px -40% 0px',
-      threshold: [0, 0.5, 1.0]
-    };
-
-    const handleIntersect = (entries: IntersectionObserverEntry[]) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          intersectingElements.current.set(entry.target.id, entry.boundingClientRect.top);
-        } else {
-          intersectingElements.current.delete(entry.target.id);
-        }
-      });
-
-      if (intersectingElements.current.size === 0) return;
-
-      const activeTargets = Array.from(intersectingElements.current.entries())
-        .sort((a, b) => a[1] - b[1]);
-
-      if (activeTargets.length > 0) {
-        const [id] = activeTargets[0];
-        
-        if (scrollTriggerRef.current !== 'manual') {
-          scrollTriggerRef.current = 'spy';
-          if (id.startsWith('spy-track-')) {
-            const trackId = id.replace('spy-track-', '');
-            setSelectedTrackId(trackId);
-            setSelectedSubcategoryId(null);
-          } else if (id.startsWith('spy-sub-')) {
-            const subId = id.replace('spy-sub-', '');
-            setSelectedSubcategoryId(subId);
-            const trackEl = document.getElementById(id)?.closest('section[id^="track-"]');
-            if (trackEl) {
-              setSelectedTrackId(trackEl.id.replace('track-', ''));
-            }
-          }
-        }
-      }
-    };
-
-    const observer = new IntersectionObserver(handleIntersect, observerOptions);
-    
-    const timeoutId = setTimeout(() => {
-      const targets = document.querySelectorAll('[id^="spy-"]');
-      targets.forEach(target => observer.observe(target));
-    }, 1000);
-
-    return () => {
-      observer.disconnect();
-      clearTimeout(timeoutId);
-      intersectingElements.current.clear();
-    };
-  }, [tracks.length, searchQuery]);
-
-  // Handle scrolling to sections (ONLY when clicked manually)
-  useEffect(() => {
-    if (scrollTriggerRef.current === 'spy') {
-      scrollTriggerRef.current = null;
-      return;
-    }
-
-    if (selectedSubcategoryId) {
-      const element = document.getElementById(`sub-${selectedSubcategoryId}`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    } else if (selectedTrackId) {
-      const element = document.getElementById(`track-${selectedTrackId}`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }
-    
-    scrollTriggerRef.current = null;
-  }, [selectedTrackId, selectedSubcategoryId]);
-
-  const handleTrackSelectManual = (id: string | null) => {
-    scrollTriggerRef.current = 'manual';
-    setSelectedTrackId(id);
-    setSelectedSubcategoryId(null);
-  };
-
-  const handleSubcategorySelectManual = (id: string | null) => {
-    scrollTriggerRef.current = 'manual';
-    setSelectedSubcategoryId(id);
-  };
 
   // Sync Auth State
   useEffect(() => {
@@ -1123,18 +1029,37 @@ const App: React.FC = () => {
       return audienceAllowed;
     });
 
-    const visibleTracks = displayTracks;
+    const visibleTracks = selectedTrackId 
+      ? displayTracks.filter(t => t.id === selectedTrackId)
+      : displayTracks;
 
     const filteredProjects = displayProjects.filter(p => 
       p.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
-    const getHubTitle = () => {
-      return (
-        <h1 className={`text-4xl sm:text-7xl font-black uppercase tracking-tight ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>
+    const getBreadcrumbs = () => {
+      const crumbs = [];
+      crumbs.push(
+        <button key="all" onClick={() => { setSelectedTrackId(null); setSelectedSubcategoryId(null); }} className={`hover:text-purple-700 transition-colors whitespace-nowrap ${!selectedTrackId ? 'text-2xl sm:text-5xl font-black mb-2' : 'text-lg sm:text-2xl font-black'}`}>
           CFF VIDEO HUB
-        </h1>
+        </button>
       );
+      if (selectedTrackId) {
+        const track = tracks.find(t => t.id === selectedTrackId);
+        crumbs.push(<span key="s1" className="text-slate-300 mx-1 sm:mx-2 shrink-0 text-xl">/</span>);
+        crumbs.push(
+          <button key="track" onClick={() => setSelectedSubcategoryId(null)} className={`hover:text-purple-700 transition-colors text-left font-black ${!selectedSubcategoryId ? 'text-purple-700 text-xl sm:text-2xl' : 'text-lg sm:text-xl'}`}>
+            {track?.title}
+          </button>
+        );
+      }
+      if (selectedSubcategoryId && selectedTrackId) {
+        const track = tracks.find(t => t.id === selectedTrackId);
+        const sub = track?.subcategories?.find(s => s.id === selectedSubcategoryId);
+        crumbs.push(<span key="s2" className="text-slate-300 mx-1 sm:mx-2 shrink-0 text-xl">/</span>);
+        crumbs.push(<span key="sub" className="text-purple-700 text-left font-black text-xl sm:text-2xl">{sub?.title}</span>);
+      }
+      return crumbs;
     };
 
     const getGridClasses = () => {
@@ -1327,9 +1252,9 @@ const App: React.FC = () => {
                 onDeleteTrack={handleDeleteTrack}
                 onDeleteSub={handleDeleteSubcategory}
                 selectedTrackId={selectedTrackId}
-                onTrackSelect={handleTrackSelectManual}
+                onTrackSelect={setSelectedTrackId}
                 selectedSubcategoryId={selectedSubcategoryId}
-                onSubcategorySelect={handleSubcategorySelectManual}
+                onSubcategorySelect={setSelectedSubcategoryId}
                 isAdmin={canEdit}
                 onLogout={handleLogout}
                 isOpen={isSidebarOpen}
@@ -1405,20 +1330,22 @@ const App: React.FC = () => {
                   
                   {renderMobileHeader()}
                   
-                  <header className="flex flex-col gap-10 mb-12 sm:mb-24">
-                    <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-10">
+                  <header className="flex flex-col gap-10 mb-12 sm:mb-20">
+                    <div className="flex flex-col xl:flex-row xl:items-end justify-between gap-8">
                       <div className="group flex items-center gap-4">
                         <div>
-                          {getHubTitle()}
-                          <p className={`text-[14px] sm:text-[18px] font-black uppercase tracking-[0.5em] mt-3 ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>
+                          <h1 className={`font-black leading-tight uppercase tracking-tight flex items-center flex-wrap gap-y-1 ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>
+                            {getBreadcrumbs()}
+                          </h1>
+                          <p className={`text-[12px] sm:text-[16px] font-black uppercase tracking-[0.4em] mt-2 ${isDarkMode ? 'text-purple-400' : 'text-purple-700'}`}>
                             {role === 'admin' ? 'ADMIN CONSOLE' : role === 'trainer' ? 'TRAINER HUB' : 'STUDENT PORTAL'}
                           </p>
                         </div>
                       </div>
                       
                       <div className="flex flex-col md:flex-row items-center gap-4 sm:gap-6 w-full xl:w-auto">
-                        <div className="relative w-full md:w-96 group">
-                          <div className="absolute inset-y-0 left-6 flex items-center pointer-events-none text-slate-400 group-focus-within:text-purple-600 transition-colors">
+                        <div className="relative w-full md:w-80 group">
+                          <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-slate-400 group-focus-within:text-purple-600 transition-colors">
                             {ICONS.Search}
                           </div>
                           <input 
@@ -1426,7 +1353,7 @@ const App: React.FC = () => {
                             placeholder="SEARCH VIDEOS..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className={`w-full h-16 pl-16 pr-8 rounded-[1.5rem] text-[12px] font-black uppercase tracking-widest border-2 outline-none transition-all ${
+                            className={`w-full h-14 pl-14 pr-6 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest border-2 outline-none transition-all ${
                               isDarkMode 
                                 ? 'bg-slate-900 border-slate-800 text-white focus:border-purple-500 shadow-2xl shadow-black/40' 
                                 : 'bg-white border-slate-100 text-slate-950 focus:border-purple-400 shadow-md focus:shadow-xl focus:shadow-purple-700/10'
@@ -1435,10 +1362,21 @@ const App: React.FC = () => {
                         </div>
 
                         <div className="flex items-center gap-4 w-full md:w-auto justify-end">
+                          {(selectedTrackId || selectedSubcategoryId) && (
+                            <button 
+                              onClick={() => { 
+                                if (selectedSubcategoryId) setSelectedSubcategoryId(null);
+                                else setSelectedTrackId(null);
+                              }}
+                              className="text-[11px] font-black text-slate-500 hover:text-purple-700 uppercase tracking-widest flex items-center gap-2 transition-colors group"
+                            >
+                              <span className="group-hover:-translate-x-1 transition-transform">{ICONS.Back}</span> BACK
+                            </button>
+                          )}
                           {canEdit && (
                             <button 
                               onClick={() => handleCreateProject()}
-                              className={`flex-1 md:flex-none h-16 flex items-center justify-center gap-4 bg-purple-700 text-white px-10 rounded-[1.5rem] text-[12px] font-black uppercase tracking-widest hover:bg-slate-950 shadow-xl transition-all active:scale-95 ${isDarkMode ? 'shadow-black/50 hover:bg-purple-600' : ''}`}
+                              className={`flex-1 md:flex-none flex items-center justify-center gap-3 bg-purple-700 text-white px-8 sm:px-10 py-4 rounded-[1.5rem] text-[11px] font-black uppercase tracking-widest hover:bg-slate-950 shadow-xl transition-all active:scale-95 ${isDarkMode ? 'shadow-black/50 hover:bg-purple-600' : ''}`}
                             >
                               {ICONS.Plus} ADD VIDEO
                             </button>
@@ -1448,29 +1386,32 @@ const App: React.FC = () => {
                     </div>
                   </header>
 
+                  {!selectedTrackId && !searchQuery && null}
                   <div className="space-y-24 sm:space-y-32 pb-20">
                     {(Array.isArray(visibleTracks) ? visibleTracks : []).map((track) => {
                       const trackProjects = filteredProjects.filter(p => p.trackId === track.id);
-                      const subcategoriesToRender = track.subcategories;
+                      const subcategoriesToRender = selectedSubcategoryId ? track.subcategories?.filter(s => s.id === selectedSubcategoryId) : track.subcategories;
                       const hasSubcategories = subcategoriesToRender && subcategoriesToRender.length > 0;
                       return (
-                        <section key={track.id} id={`track-${track.id}`} className="scroll-mt-32 space-y-10 sm:space-y-12">
-                          <div id={`spy-track-${track.id}`} className={`flex items-center justify-between pb-8 cursor-pointer group ${selectedTrackId === track.id ? 'border-b-4 border-purple-600' : ''}`} onClick={() => handleTrackSelectManual(track.id)}>
-                            <div className="flex items-center gap-4 sm:gap-6">
-                              <span className="text-4xl sm:text-7xl group-hover:scale-110 transition-transform">{track.icon}</span>
-                              <div>
-                                <h3 className={`text-xl sm:text-3xl font-black uppercase tracking-tight leading-none group-hover:text-purple-700 transition-colors ${track.id === selectedTrackId ? 'text-purple-700' : (isDarkMode ? 'text-white' : 'text-slate-950')}`}>{track.title}</h3>
-                                <p className={`text-[10px] sm:text-[13px] font-black uppercase tracking-[0.2em] mt-2 sm:mt-3 ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}>{track.subtitle}</p>
+                        <section key={track.id} className="space-y-10 sm:space-y-12">
+                          {!selectedTrackId && (
+                            <div className="flex items-center justify-between pb-8 cursor-pointer group" onClick={() => setSelectedTrackId(track.id)}>
+                              <div className="flex items-center gap-4 sm:gap-6">
+                                <span className="text-4xl sm:text-7xl group-hover:scale-110 transition-transform">{track.icon}</span>
+                                <div>
+                                  <h3 className={`text-xl sm:text-3xl font-black uppercase tracking-tight leading-none group-hover:text-purple-700 transition-colors ${isDarkMode ? 'text-white' : 'text-slate-950'}`}>{track.title}</h3>
+                                  <p className={`text-[10px] sm:text-[13px] font-black uppercase tracking-[0.2em] mt-2 sm:mt-3 ${isDarkMode ? 'text-slate-500' : 'text-slate-600'}`}>{track.subtitle}</p>
+                                </div>
                               </div>
                             </div>
-                          </div>
+                          )}
                           {hasSubcategories ? (
                             <div className="space-y-12 sm:space-y-16">
                               {subcategoriesToRender?.map(sub => {
                                 const subProjects = trackProjects.filter(p => p.subcategoryId === sub.id);
                                 return (
-                                  <div key={sub.id} id={`sub-${sub.id}`} className="scroll-mt-32 space-y-6 sm:space-y-8 pl-3 sm:pl-4 border-l-4 border-purple-100">
-                                    <h4 id={`spy-sub-${sub.id}`} className={`text-lg sm:text-xl font-black uppercase tracking-widest flex items-center gap-3 sm:gap-4 cursor-pointer hover:text-purple-900 transition-colors ${selectedSubcategoryId === sub.id ? 'text-purple-900' : 'text-purple-700'}`} onClick={() => handleSubcategorySelectManual(sub.id)}>
+                                  <div key={sub.id} className="space-y-6 sm:space-y-8 pl-3 sm:pl-4 border-l-4 border-purple-100">
+                                    <h4 className={`text-lg sm:text-xl font-black uppercase tracking-widest flex items-center gap-3 sm:gap-4 cursor-pointer hover:text-purple-900 transition-colors ${selectedSubcategoryId === sub.id ? 'text-purple-900' : 'text-purple-700'}`} onClick={() => setSelectedSubcategoryId(sub.id)}>
                                       <span className={`w-3 h-3 sm:w-4 sm:h-4 rounded-full ${selectedSubcategoryId === sub.id ? 'bg-purple-900 scale-125' : 'bg-purple-600'}`} />
                                       {sub.title}
                                     </h4>
