@@ -290,26 +290,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             </button>
           )}
 
-          {isAdmin && isOpen && (
-            <button
-              onClick={() => {
-                onViewChange('trash');
-                onTrackSelect(null);
-                onSubcategorySelect(null);
-                if (window.innerWidth < 768) onClose();
-              }}
-              className={`group relative flex items-center rounded-xl transition-all overflow-hidden whitespace-nowrap w-full gap-4 px-2 py-3 mt-1 ${
-                currentView === 'trash'
-                ? (isDarkMode ? 'text-red-400 bg-red-500/10' : 'text-red-700 bg-red-50/50')
-                : (isDarkMode ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-900 hover:bg-slate-50')
-              }`}
-            >
-              <span className={`shrink-0 transition-colors ${currentView === 'trash' ? (isDarkMode ? 'text-red-400' : 'text-red-700') : (isDarkMode ? 'text-slate-400' : 'text-slate-700')}`}>
-                {ICONS.Delete}
-              </span>
-              <span className="text-[15px] font-black uppercase tracking-tight">REGISTRY TRASH</span>
-            </button>
-          )}
           <button onClick={onClose} className="md:hidden p-2 text-slate-400 hover:text-slate-950 ml-auto">
             {ICONS.Back}
           </button>
@@ -482,6 +462,42 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       <div className={`mt-auto pt-6 border-t px-3 pb-4 space-y-4 ${isDarkMode ? 'border-slate-800' : 'border-slate-100'}`}>
+        {/* Registry Trash - Only for Admin */}
+        {isAdmin && (
+          <button
+            onClick={() => {
+              onViewChange('trash');
+              onTrackSelect(null);
+              onSubcategorySelect(null);
+              if (window.innerWidth < 768) onClose();
+            }}
+            className={`group/trash relative w-full flex items-center transition-all shadow-xl active:scale-95 ${
+              isOpen ? 'gap-3 px-4 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest' : 'w-12 h-12 rounded-xl mx-auto justify-center'
+            } ${
+              currentView === 'trash'
+                ? (isDarkMode ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-red-50 border border-red-100 text-red-700')
+                : (isDarkMode ? 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-red-400 shadow-black/40' : 'bg-white border border-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-700 shadow-sm')
+            }`}
+          >
+            <span className="shrink-0 scale-110">{ICONS.Delete}</span>
+            {isOpen && <span className="font-black uppercase tracking-widest">Registry Trash</span>}
+
+            {/* Tooltip for closed sidebar */}
+            {!isOpen && (
+              <div className={`absolute left-16 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest whitespace-nowrap opacity-0 group-hover/trash:opacity-100 translate-x-2 group-hover/trash:translate-x-0 transition-all pointer-events-none shadow-xl border z-50 ${
+                isDarkMode 
+                  ? 'bg-slate-800 text-white border-slate-700' 
+                  : 'bg-white text-slate-900 border-slate-100'
+              }`}>
+                Registry Trash
+                <div className={`absolute -left-1 top-1/2 -translate-y-1/2 w-2 h-2 rotate-45 border-l border-b ${
+                  isDarkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-100'
+                }`}></div>
+              </div>
+            )}
+          </button>
+        )}
+
         {/* Theme Toggle - Sidebar */}
         <button
           onClick={toggleDarkMode}
