@@ -336,6 +336,56 @@ const App: React.FC = () => {
     return () => unsubscribe();
   }, []);
 
+  const [activeTip, setActiveTip] = useState<string | null>(null);
+  const [suggestedProject, setSuggestedProject] = useState<Project | null>(null);
+
+  useEffect(() => {
+    // Determine role for tips
+    const path = window.location.pathname;
+    const role: 'admin' | 'trainer' | 'student' = path.includes('admin') ? 'admin' : path.includes('trainer') ? 'trainer' : 'student';
+    
+    const learningTips = {
+      admin: [
+        "Keep the Registry Trash tidy - items are permanently purged after 30 days.",
+        "Use descriptive subcategories to group similar tutorial videos together.",
+        "Check the 'Student Portal' view occasionally to see exactly what students see.",
+        "The 'All Audiences' tag is great for general platform guides.",
+        "Batch upload tutorials to maintain a consistent learning schedule.",
+        "Track titles work best when kept under 15 characters for mobile display."
+      ],
+      trainer: [
+        "Direct students to specific subcategories for focused objective-based learning.",
+        "Watch history helps you see which modules students are engaging with most.",
+        "Add 'Key Takeaways' in the tutorial sections to highlight critical concepts.",
+        "Group complex tasks into multiple short videos rather than one long tutorial.",
+        "Encourage students to use the 'Watch Again' feature for technical mastery.",
+        "Use the search bar during sessions to quickly pull up reference material."
+      ],
+      student: [
+        "Watching tutorials at 1.5x speed is great for review, but use 1x for new skills.",
+        "The 'History' tab keeps track of everything you've started - never lose your spot.",
+        "Try the 'Search' feature if you're looking for a specific software tool or tip.",
+        "Take short breaks between modules to improve your technical retention.",
+        "Practice alongside the video - pause frequently to replicate the steps.",
+        "Master one track before jumping into another to build a solid foundation.",
+        "Stuck on a problem? Look for a 'Troubleshooting' subcategory in the module.",
+        "Use 'Fullscreen' mode on mobile to see smaller interface details in videos."
+      ]
+    };
+
+    const roleKey = role === 'admin' ? 'admin' : role === 'trainer' ? 'trainer' : 'student';
+    const tips = learningTips[roleKey];
+    setActiveTip(tips[Math.floor(Math.random() * tips.length)]);
+    
+    // Pick a suggested project
+    if (projects.length > 0) {
+      const validProjects = projects.filter(p => !p.isDeleted);
+      if (validProjects.length > 0) {
+        setSuggestedProject(validProjects[Math.floor(Math.random() * validProjects.length)]);
+      }
+    }
+  }, [isLoading, projects.length]);
+
   // Sync Auth State
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -1315,6 +1365,8 @@ const App: React.FC = () => {
                       )}
                     </div>
                   </header>
+
+                  {!selectedTrackId && !searchQuery && null}
                   <div className="space-y-24 sm:space-y-32 pb-20">
                     {(Array.isArray(visibleTracks) ? visibleTracks : []).map((track) => {
                       const trackProjects = filteredProjects.filter(p => p.trackId === track.id);
@@ -1386,7 +1438,15 @@ const App: React.FC = () => {
   return (
     <div className={`min-h-screen transition-colors duration-500 ${isDarkMode ? 'dark bg-[#0a0b0d]' : 'bg-slate-50'}`}>
       <AnimatePresence mode="wait">
-        {isLoading && <LoadingScreen isDarkMode={isDarkMode} key="loading" />}
+        {isLoading && (
+          <LoadingScreen 
+            isDarkMode={isDarkMode} 
+            key="loading" 
+            tip={activeTip}
+            suggestedProject={suggestedProject}
+            tracks={tracks}
+          />
+        )}
       </AnimatePresence>
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
