@@ -100,6 +100,16 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   }, [isModalOpen, addingSubToTrackId]);
 
+  useEffect(() => {
+    if (selectedTrackId && !expandedTrackIds.has(selectedTrackId)) {
+      setExpandedTrackIds(prev => {
+        const next = new Set(prev);
+        next.add(selectedTrackId);
+        return next;
+      });
+    }
+  }, [selectedTrackId]);
+
   const toggleTrackExpansion = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     const newExpanded = new Set(expandedTrackIds);
