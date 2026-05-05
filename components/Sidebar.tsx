@@ -235,7 +235,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </button>
 
-        <div className={`flex items-center mb-4 overflow-hidden whitespace-nowrap ${isOpen ? 'justify-between px-2' : 'justify-center'}`}>
+        <div className={`flex items-center mb-4 gap-1.5 whitespace-nowrap ${isOpen ? 'justify-between px-1' : 'justify-center'}`}>
           <button
             onClick={() => {
               onViewChange('home');
@@ -243,8 +243,8 @@ const Sidebar: React.FC<SidebarProps> = ({
               onSubcategorySelect(null);
               if (window.innerWidth < 768) onClose();
             }}
-            className={`group relative flex items-center rounded-xl transition-all overflow-hidden whitespace-nowrap ${
-              isOpen ? 'w-full gap-4 px-2 py-3' : 'w-12 h-12 justify-center'
+            className={`group relative flex items-center rounded-xl transition-all min-w-0 ${
+              isOpen ? 'flex-1 gap-1.5 sm:gap-3 px-2 sm:px-3 py-3' : 'w-12 h-12 justify-center'
             } ${
               (currentView === 'home' || (!isOpen && currentView === 'history')) && selectedTrackId === null
               ? (isDarkMode ? 'text-purple-400 bg-purple-500/10' : 'text-purple-700 bg-purple-50/50')
@@ -253,11 +253,11 @@ const Sidebar: React.FC<SidebarProps> = ({
           >
             <span className={`shrink-0 transition-colors ${(currentView === 'home' || (!isOpen && currentView === 'history')) && selectedTrackId === null ? (isDarkMode ? 'text-purple-400' : 'text-purple-700') : (isDarkMode ? 'text-slate-400' : 'text-slate-700')}`}>
               {!isOpen && currentView === 'history' ? (
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
               ) : ICONS.Home}
             </span>
-            <span className={`text-[15px] font-black uppercase tracking-tight ${!isOpen ? 'md:hidden' : ''}`}>
-              {!isOpen && currentView === 'history' ? 'WATCH HISTORY' : 'HOME PAGE'}
+            <span className={`text-[10px] sm:text-[13px] font-black uppercase tracking-tight truncate ${!isOpen ? 'md:hidden' : ''}`}>
+              {!isOpen && currentView === 'history' ? 'HISTORY' : 'HOME'}
             </span>
 
             {/* Custom Tooltip for collapsed state */}
@@ -277,20 +277,20 @@ const Sidebar: React.FC<SidebarProps> = ({
                 onSubcategorySelect(null);
                 if (window.innerWidth < 768) onClose();
               }}
-              className={`group relative flex items-center rounded-xl transition-all overflow-hidden whitespace-nowrap w-full gap-4 px-2 py-3 ${
+              className={`group relative flex items-center rounded-xl transition-all min-w-0 flex-1 gap-1.5 sm:gap-3 px-2 sm:px-3 py-3 ${
                 currentView === 'history'
                 ? (isDarkMode ? 'text-purple-400 bg-purple-500/10' : 'text-purple-700 bg-purple-50/50')
                 : (isDarkMode ? 'text-slate-200 hover:bg-slate-800' : 'text-slate-900 hover:bg-slate-50')
               }`}
             >
               <span className={`shrink-0 transition-colors ${currentView === 'history' ? (isDarkMode ? 'text-purple-400' : 'text-purple-700') : (isDarkMode ? 'text-slate-400' : 'text-slate-700')}`}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
               </span>
-              <span className="text-[15px] font-black uppercase tracking-tight">HISTORY</span>
+              <span className="text-[10px] sm:text-[13px] font-black uppercase tracking-tight truncate">HISTORY</span>
             </button>
           )}
 
-          <button onClick={onClose} className="md:hidden p-2 text-slate-400 hover:text-slate-950 ml-auto">
+          <button onClick={onClose} className="md:hidden p-1.5 text-slate-400 hover:text-slate-950 shrink-0">
             {ICONS.Back}
           </button>
         </div>
@@ -357,12 +357,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                     </button>
                   )}
                   
-                  <div 
+                  <button 
                     onClick={(e) => { e.stopPropagation(); toggleTrackExpansion(e, track.id); }}
-                    className={`p-1 transition-all duration-300 ${expandedTrackIds.has(track.id) ? 'rotate-180 text-purple-600' : 'text-slate-400 group-hover:text-purple-400'} ${!isOpen ? 'md:hidden' : ''}`}
+                    className={`flex items-center justify-center w-11 h-11 -mr-2 rounded-xl transition-all duration-300 hover:bg-black/5 hover:scale-110 active:scale-90 ${
+                      expandedTrackIds.has(track.id) ? 'rotate-180 text-purple-600' : 'text-slate-400 group-hover:text-purple-500'
+                    } ${!isOpen ? 'md:hidden' : ''}`}
+                    aria-label="Toggle Expansion"
                   >
-                    {ICONS.ChevronDown}
-                  </div>
+                    <span className="scale-110">{ICONS.ChevronDown}</span>
+                  </button>
 
                   {/* Custom Tooltip for collapsed state */}
                   {!isOpen && (

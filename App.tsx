@@ -75,17 +75,29 @@ const DEMO_PROJECTS: Project[] = [
 
 const App: React.FC = () => {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isViewerAuthenticated, setIsViewerAuthenticated] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('is_admin_v2') === 'true';
+  });
+  const [isViewerAuthenticated, setIsViewerAuthenticated] = useState(() => {
+    return localStorage.getItem('is_trainer_v2') === 'true';
+  });
 
-  const [currentView, setCurrentView] = useState<ViewState>('home');
+  const [currentView, setCurrentView] = useState<ViewState>(() => {
+    const saved = localStorage.getItem('currentView');
+    return (saved as ViewState) || 'home';
+  });
   const [tracks, setTracks] = useState<LearningTrack[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [draggedProjectId, setDraggedProjectId] = useState<string | null>(null);
-  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(null);
-  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(null);
+  const [selectedTrackId, setSelectedTrackId] = useState<string | null>(() => {
+    return localStorage.getItem('selectedTrackId');
+  });
+  const [selectedSubcategoryId, setSelectedSubcategoryId] = useState<string | null>(() => {
+    return localStorage.getItem('selectedSubcategoryId');
+  });
+  const [isAuthResolving, setIsAuthResolving] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -326,15 +338,65 @@ const App: React.FC = () => {
           const cleanedProjects = JSON.parse(JSON.stringify(updatedProjectList));
           set(projectsRef, cleanedProjects);
         }
+
+        // Restore selected project if persisted
+        const savedProjectId = localStorage.getItem('selectedProjectId');
+        if (savedProjectId && !selectedProject) {
+          const found = updatedProjectList.find(p => p.id === savedProjectId);
+          if (found) setSelectedProject(found);
+        }
       } else {
         // Seed initial projects if empty
         set(projectsRef, DEMO_PROJECTS);
         setProjects(DEMO_PROJECTS);
+
+        // Restore selected project from seeds if any match
+        const savedProjectId = localStorage.getItem('selectedProjectId');
+        if (savedProjectId && !selectedProject) {
+          const found = DEMO_PROJECTS.find(p => p.id === savedProjectId);
+          if (found) setSelectedProject(found);
+        }
       }
       setIsLoading(false);
     });
     return () => unsubscribe();
   }, []);
+
+  useEffect(() => {
+    localStorage.setItem('is_admin_v2', isAuthenticated.toString());
+  }, [isAuthenticated]);
+
+  useEffect(() => {
+    localStorage.setItem('is_trainer_v2', isViewerAuthenticated.toString());
+  }, [isViewerAuthenticated]);
+
+  useEffect(() => {
+    localStorage.setItem('currentView', currentView);
+  }, [currentView]);
+
+  useEffect(() => {
+    if (selectedTrackId) {
+      localStorage.setItem('selectedTrackId', selectedTrackId);
+    } else {
+      localStorage.removeItem('selectedTrackId');
+    }
+  }, [selectedTrackId]);
+
+  useEffect(() => {
+    if (selectedSubcategoryId) {
+      localStorage.setItem('selectedSubcategoryId', selectedSubcategoryId);
+    } else {
+      localStorage.removeItem('selectedSubcategoryId');
+    }
+  }, [selectedSubcategoryId]);
+
+  useEffect(() => {
+    if (selectedProject) {
+      localStorage.setItem('selectedProjectId', selectedProject.id);
+    } else if (currentView !== 'viewer' && currentView !== 'editor') {
+      localStorage.removeItem('selectedProjectId');
+    }
+  }, [selectedProject, currentView]);
 
   const [activeTip, setActiveTip] = useState<string | null>(null);
   const [suggestedProject, setSuggestedProject] = useState<Project | null>(null);
@@ -394,10 +456,12 @@ const App: React.FC = () => {
         setIsAuthenticated(true);
         setIsViewerAuthenticated(true);
       } else {
-        // If Firebase Auth is cleared, we only automatically clear the Admin state.
-        // We leave isViewerAuthenticated alone to allow the hardcoded Trainer session to persist independently
+        // Only clear admin if Firebase says no user
+        // We do NOT automatically clear isViewerAuthenticated here 
+        // to allow the hardcoded Trainer session to persist
         setIsAuthenticated(false);
       }
+      setIsAuthResolving(false);
     });
     return () => unsubscribe();
   }, []);
@@ -1458,7 +1522,7 @@ const App: React.FC = () => {
   return (
     <div className={`min-h-screen transition-colors duration-500 ${isDarkMode ? 'dark bg-[#0a0b0d]' : 'bg-slate-50'}`}>
       <AnimatePresence mode="wait">
-        {isLoading && (
+        {(isLoading || isAuthResolving) && (
           <LoadingScreen 
             isDarkMode={isDarkMode} 
             key="loading" 
@@ -1469,24 +1533,26 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
       <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
-          <Route path="/" element={
-            <LandingPage 
-              onAdminLoginSuccess={() => { setIsAuthenticated(true); }} 
-              onTrainerLoginSuccess={() => { setIsViewerAuthenticated(true); }} 
-              isDarkMode={isDarkMode}
-              toggleDarkMode={toggleDarkMode}
-            />
-          } />
-          <Route path="/student" element={renderMainHub('student')} />
-          <Route path="/trainer-dashboard" element={
-            isViewerAuthenticated ? renderMainHub('trainer') : <Navigate to="/" />
-          } />
-          <Route path="/admin-dashboard" element={
-            isAuthenticated ? renderMainHub('admin') : <Navigate to="/" />
-          } />
-          <Route path="*" element={<Navigate to="/" />} />
-        </Routes>
+        {!isAuthResolving && (
+          <Routes location={location} key={location.pathname}>
+            <Route path="/" element={
+              <LandingPage 
+                onAdminLoginSuccess={() => { setIsAuthenticated(true); }} 
+                onTrainerLoginSuccess={() => { setIsViewerAuthenticated(true); }} 
+                isDarkMode={isDarkMode}
+                toggleDarkMode={toggleDarkMode}
+              />
+            } />
+            <Route path="/student" element={renderMainHub('student')} />
+            <Route path="/trainer-dashboard" element={
+              isViewerAuthenticated ? renderMainHub('trainer') : <Navigate to="/" />
+            } />
+            <Route path="/admin-dashboard" element={
+              isAuthenticated ? renderMainHub('admin') : <Navigate to="/" />
+            } />
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        )}
       </AnimatePresence>
     </div>
   );
